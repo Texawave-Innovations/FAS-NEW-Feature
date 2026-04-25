@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Pencil } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { database } from '@/services/firebase';
-import { ref, set, get, push } from 'firebase/database';
+import { ref, set, get } from 'firebase/database';
 import { Part } from '@/types';
 
 export default function ProductionMaster() {
@@ -34,8 +34,7 @@ export default function ProductionMaster() {
   }, []);
 
   const loadMasterData = async () => {
-    const mastersRef = ref(database, 'masters/production');
-    const snapshot = await get(mastersRef);
+    const snapshot = await get(ref(database, 'masters/production'));
     if (snapshot.exists()) {
       const data = snapshot.val();
       setMachines(data.machines || {});
@@ -51,15 +50,12 @@ export default function ProductionMaster() {
       toast({ title: 'Please enter a value', variant: 'destructive' });
       return;
     }
-
     const id = `${category === 'machines' ? 'MC' : 'DIE'}${String(Object.keys(category === 'machines' ? machines : dies).length + 1).padStart(2, '0')}`;
-    const updated = category === 'machines' 
+    const updated = category === 'machines'
       ? { ...machines, [id]: { name: newItem } }
       : { ...dies, [id]: { name: newItem } };
-
     if (category === 'machines') setMachines(updated);
     else setDies(updated);
-
     await set(ref(database, `masters/production/${category}`), updated);
     setNewItem('');
     setEditingCategory(null);
@@ -71,14 +67,11 @@ export default function ProductionMaster() {
       toast({ title: 'Please enter a value', variant: 'destructive' });
       return;
     }
-
-    const list = category === 'compoundCodes' 
+    const list = category === 'compoundCodes'
       ? [...compoundCodes, newItem]
       : [...productionStages, newItem];
-
     if (category === 'compoundCodes') setCompoundCodes(list);
     else setProductionStages(list);
-
     await set(ref(database, `masters/production/${category}`), list);
     setNewItem('');
     setEditingCategory(null);
@@ -90,12 +83,10 @@ export default function ProductionMaster() {
       toast({ title: 'Please fill all required fields', variant: 'destructive' });
       return;
     }
-
     const id = `part${String(Object.keys(parts).length + 1).padStart(3, '0')}`;
     const updated = { ...parts, [id]: partForm };
     setParts(updated);
-    await set(ref(database, `masters/production/parts`), updated);
-    
+    await set(ref(database, 'masters/production/parts'), updated);
     setShowPartDialog(false);
     setPartForm({ name: '', partNumber: '', inputWeight: 0, cycleTime: 0, cavity: 0 });
     toast({ title: 'Part added successfully' });

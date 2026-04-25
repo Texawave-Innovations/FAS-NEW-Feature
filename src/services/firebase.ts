@@ -13,6 +13,7 @@ import {
   orderByChild,
   runTransaction,
 } from 'firebase/database';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
  const firebaseConfig = {
   apiKey: "AIzaSyBlYRmC04NUje53nm1Nt9t8Rg9945DlFnA",
@@ -25,7 +26,8 @@ import {
 };
 
 const app = initializeApp(firebaseConfig);
- const database = getDatabase(app);
+const database = getDatabase(app);
+const storage = getStorage(app);
 
  // ---------------------------------------------------------------------------
 // SANITIZE — strips undefined values (Firebase rejects them)
@@ -145,3 +147,4 @@ export { runTransaction };
 // EXPORTS FOR DIRECT USE (commonly needed in components)
 // ---------------------------------------------------------------------------
 export { ref, database };
+export { storage, storageRef, uploadBytes, getDownloadURL };

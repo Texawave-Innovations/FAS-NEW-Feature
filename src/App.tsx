@@ -74,11 +74,13 @@ import QualityReports from "./modules/quality/QualityReports";
 
 // Production Module
 import ProductionLayout from "./modules/production/ProductionLayout";
-import ProductionJobs from "./modules/production/ProductionJobs";
-import BatchManagement from "./modules/production/BatchManagement";
-import RawMaterials from "./modules/production/RawMaterials";
-import WIPStock from "./modules/production/WIPStock";
-import FGStock from "./modules/production/FGStock";
+import SalesOrder from "./modules/production/SalesOrder";
+import WorkOrder from "./modules/production/WorkOrder";
+import WorkOrderStatus from "./modules/production/WorkOrderStatus";
+import WorkOrderBinPrint from "./modules/production/WorkOrderBinPrint";
+import ProductionQA from "./modules/production/ProductionQA";
+import Packing from "./modules/production/Packing";
+import Dispatch from "./modules/production/Dispatch";
 
 // Master Module
 import MasterLayout from "./modules/master/MasterLayout";
@@ -86,6 +88,7 @@ import SalesMaster from "./modules/master/SalesMaster";
 import HRMaster from "./modules/master/HRMaster";
 import QualityMaster from "./modules/master/QualityMaster";
 import ProductionMaster from "./modules/master/ProductionMaster";
+import MaterialMaster from "./modules/master/MaterialMaster";
 import StoresMaster from "./modules/master/StoresMaster";
 import FinanceMaster from "./modules/master/FinanceMaster";
 
@@ -522,11 +525,14 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<ProductionJobs />} />
-                <Route path="batches" element={<BatchManagement />} />
-                <Route path="raw-materials" element={<RawMaterials />} />
-                <Route path="wip" element={<WIPStock />} />
-                <Route path="fg-stock" element={<FGStock />} />
+                <Route index element={<Navigate to="sales-order" replace />} />
+                <Route path="sales-order"       element={<SalesOrder />} />
+                <Route path="work-order"        element={<WorkOrder />} />
+                <Route path="work-order-status" element={<WorkOrderStatus />} />
+                <Route path="bin-print"         element={<WorkOrderBinPrint />} />
+                <Route path="qa"                element={<ProductionQA />} />
+                <Route path="packing"           element={<Packing />} />
+                <Route path="dispatch"          element={<Dispatch />} />
               </Route>
 
               {/* MASTER MODULE */}
@@ -543,6 +549,7 @@ function App() {
                 <Route path="hr" element={<HRMaster />} />
                 <Route path="quality" element={<QualityMaster />} />
                 <Route path="production" element={<ProductionMaster />} />
+                <Route path="material" element={<MaterialMaster />} />
                 <Route path="stores" element={<StoresMaster />} />
                 <Route path="finance" element={<FinanceMaster />} />
               </Route>

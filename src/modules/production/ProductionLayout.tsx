@@ -1,15 +1,17 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { LiveClock } from '@/components/layout/LiveClock';
-import { LayoutDashboard, Briefcase, Package, Archive, Boxes } from 'lucide-react';
+import { ShoppingCart, ClipboardList, Activity, Printer, ShieldCheck, Package, Truck } from 'lucide-react';
 
 export default function ProductionLayout() {
   const productionMenuItems = [
-    { path: '/production', label: 'Production Jobs', icon: Briefcase },
-    // { path: '/production/batches', label: 'Batch Management', icon: Archive },
-    // { path: '/production/raw-materials', label: 'Raw Materials', icon: Package },
-    // { path: '/production/wip', label: 'WIP Stock', icon: Boxes },
-    // { path: '/production/fg-stock', label: 'FG Stock', icon: Package },
+    { path: '/production/sales-order',      label: 'Sales Order',          icon: ShoppingCart },
+    { path: '/production/work-order',       label: 'Work Order',           icon: ClipboardList },
+    { path: '/production/work-order-status',label: 'Work Order Status',    icon: Activity },
+    { path: '/production/bin-print',        label: 'Work Order Bin Print', icon: Printer },
+    { path: '/production/qa',              label: 'QA',                   icon: ShieldCheck },
+    { path: '/production/packing',         label: 'Packing',              icon: Package },
+    { path: '/production/dispatch',        label: 'Dispatch',             icon: Truck },
   ];
 
   return (
@@ -18,7 +20,7 @@ export default function ProductionLayout() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Production</h1>
-            <p className="text-muted-foreground mt-1">Manufacturing and inventory management</p>
+            <p className="text-muted-foreground mt-1">Manufacturing and production management</p>
           </div>
           <LiveClock />
         </div>
@@ -30,7 +32,6 @@ export default function ProductionLayout() {
               <NavLink
                 key={item.path}
                 to={item.path}
-                end={item.path === '/production'}
                 className={({ isActive }) =>
                   `flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     isActive

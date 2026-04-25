@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -20,6 +22,173 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { database } from '@/services/firebase';
 import { ref, set, get } from 'firebase/database';
+
+// ── Customer Master ───────────────────────────────────────────────────────────
+interface Customer {
+  customerCode: string;
+  customerName: string;
+  customerGroup: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  gstNo: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  pincode: string;
+}
+
+const emptyCustomer: Customer = {
+  customerCode: '', customerName: '', customerGroup: '',
+  contactPerson: '', phone: '', email: '', gstNo: '',
+  address: '', city: '', state: '', country: '', pincode: '',
+};
+
+function CustomerSection() {
+  const [customers, setCustomers] = useState<Record<string, Customer>>({});
+  const [form, setForm] = useState<Customer>(emptyCustomer);
+  const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    get(ref(database, 'masters/sales/customers')).then((snap) => {
+      if (snap.exists()) setCustomers(snap.val());
+    });
+  }, []);
+
+  const save = async () => {
+    if (!form.customerCode.trim() || !form.customerName.trim()) {
+      toast({ title: 'Customer Code and Name are required', variant: 'destructive' });
+      return;
+    }
+    const id = `CUST${String(Object.keys(customers).length + 1).padStart(3, '0')}`;
+    const updated = { ...customers, [id]: form };
+    setCustomers(updated);
+    await set(ref(database, 'masters/sales/customers'), updated);
+    setForm(emptyCustomer);
+    setShowForm(false);
+    toast({ title: 'Customer saved successfully' });
+  };
+
+  const clear = () => setForm(emptyCustomer);
+  const cancel = () => { setForm(emptyCustomer); setShowForm(false); };
+
+  const f = (field: keyof Customer) => ({
+    value: form[field],
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [field]: e.target.value }),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center justify-between">
+          Customer Master
+          <Button size="sm" onClick={() => setShowForm(true)} className="bg-primary">
+            <Plus className="h-4 w-4 mr-1" /> Add
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {showForm && (
+          <div className="mb-6 p-4 border border-border rounded-lg bg-muted/30 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <Label>Customer Code <span className="text-red-500">*</span></Label>
+                <Input placeholder="Enter customer code" {...f('customerCode')} />
+              </div>
+              <div className="space-y-1">
+                <Label>Customer Name <span className="text-red-500">*</span></Label>
+                <Input placeholder="Enter customer name" {...f('customerName')} />
+              </div>
+              <div className="space-y-1">
+                <Label>Customer Group</Label>
+                <Input placeholder="Enter customer group" {...f('customerGroup')} />
+              </div>
+              <div className="space-y-1">
+                <Label>Contact Person</Label>
+                <Input placeholder="Enter contact person" {...f('contactPerson')} />
+              </div>
+              <div className="space-y-1">
+                <Label>Phone</Label>
+                <Input placeholder="Enter phone number" {...f('phone')} />
+              </div>
+              <div className="space-y-1">
+                <Label>Email</Label>
+                <Input type="email" placeholder="Enter email" {...f('email')} />
+              </div>
+              <div className="space-y-1">
+                <Label>GST No</Label>
+                <Input placeholder="Enter GST number" {...f('gstNo')} />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <Label>Address</Label>
+                <Input placeholder="Enter address" {...f('address')} />
+              </div>
+              <div className="space-y-1">
+                <Label>City</Label>
+                <Input placeholder="Enter city" {...f('city')} />
+              </div>
+              <div className="space-y-1">
+                <Label>State</Label>
+                <Input placeholder="Enter state" {...f('state')} />
+              </div>
+              <div className="space-y-1">
+                <Label>Country</Label>
+                <Input placeholder="Enter country" {...f('country')} />
+              </div>
+              <div className="space-y-1">
+                <Label>Pincode</Label>
+                <Input placeholder="Enter pincode" {...f('pincode')} />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={save} className="bg-green-600 hover:bg-green-700 text-white">Save</Button>
+              <Button onClick={clear} className="bg-yellow-500 hover:bg-yellow-600 text-white">Clear</Button>
+              <Button onClick={cancel} className="bg-red-500 hover:bg-red-600 text-white">Cancel</Button>
+            </div>
+          </div>
+        )}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Code</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Group</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>GST No</TableHead>
+              <TableHead>City</TableHead>
+              <TableHead>State</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Object.entries(customers).map(([id, c]) => (
+              <TableRow key={id}>
+                <TableCell className="font-medium">{c.customerCode}</TableCell>
+                <TableCell>{c.customerName}</TableCell>
+                <TableCell>{c.customerGroup}</TableCell>
+                <TableCell>{c.contactPerson}</TableCell>
+                <TableCell>{c.phone}</TableCell>
+                <TableCell>{c.email}</TableCell>
+                <TableCell>{c.gstNo}</TableCell>
+                <TableCell>{c.city}</TableCell>
+                <TableCell>{c.state}</TableCell>
+              </TableRow>
+            ))}
+            {Object.keys(customers).length === 0 && (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-6">
+                  No customers added yet
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
 import {
   DocType,
   RunningNumberConfig,
@@ -230,6 +399,7 @@ export default function SalesMaster() {
   const [itemTypes, setItemTypes] = useState<string[]>([]);
   const [itemGroups, setItemGroups] = useState<string[]>([]);
   const [units, setUnits] = useState<string[]>([]);
+  const [warehouses, setWarehouses] = useState<string[]>([]);
 
   const [newItem, setNewItem] = useState('');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -263,6 +433,7 @@ export default function SalesMaster() {
         setItemTypes(toArray(data.itemTypes));
         setItemGroups(toArray(data.itemGroups));
         setUnits(toArray(data.units));
+        setWarehouses(toArray(data.warehouses));
       }
     } catch (error) {
       console.error('Error loading master data:', error);
@@ -286,6 +457,7 @@ export default function SalesMaster() {
       case 'itemTypes':      updatedList = [...itemTypes, newItem];      setItemTypes(updatedList);      break;
       case 'itemGroups':     updatedList = [...itemGroups, newItem];     setItemGroups(updatedList);     break;
       case 'units':          updatedList = [...units, newItem];          setUnits(updatedList);          break;
+      case 'warehouses':     updatedList = [...warehouses, newItem];     setWarehouses(updatedList);     break;
       default: return;
     }
 
@@ -306,6 +478,7 @@ export default function SalesMaster() {
       case 'itemTypes':      updatedList = itemTypes.filter((_, i) => i !== index);      setItemTypes(updatedList);      break;
       case 'itemGroups':     updatedList = itemGroups.filter((_, i) => i !== index);     setItemGroups(updatedList);     break;
       case 'units':          updatedList = units.filter((_, i) => i !== index);          setUnits(updatedList);          break;
+      case 'warehouses':     updatedList = warehouses.filter((_, i) => i !== index);     setWarehouses(updatedList);     break;
       default: return;
     }
 
@@ -369,19 +542,23 @@ export default function SalesMaster() {
     <div className="p-6 max-w-7xl mx-auto space-y-8">
       <h1 className="text-3xl font-bold text-center mb-10">Sales & Inventory Masters</h1>
 
-      {/* ── Running Number – NEW section at top ── */}
+      {/* ── Running Number ── */}
       <RunningNumberSection />
+
+      {/* ── Customer Master ── */}
+      <CustomerSection />
 
       {/* ── Existing master lists ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {renderList('Payment Terms',    paymentTerms,   'paymentTerms')}
-        {renderList('Delivery Terms',   deliveryTerms,  'deliveryTerms')}
-        {renderList('Dispatch Modes',   dispatchModes,  'dispatchModes')}
-        {renderList('GST Rates',        gstList,        'gstList')}
-        {renderList('Item Categories',  itemCategories, 'itemCategories')}
-        {renderList('Item Types',       itemTypes,      'itemTypes')}
-        {renderList('Item Groups',      itemGroups,     'itemGroups')}
-        {renderList('Units',            units,          'units')}
+        {renderList('Payment Terms',       paymentTerms,   'paymentTerms')}
+        {renderList('Delivery Terms',      deliveryTerms,  'deliveryTerms')}
+        {renderList('Dispatch Modes',      dispatchModes,  'dispatchModes')}
+        {renderList('GST Rates',           gstList,        'gstList')}
+        {renderList('Item Categories',     itemCategories, 'itemCategories')}
+        {renderList('Item Types',          itemTypes,      'itemTypes')}
+        {renderList('Item Groups',         itemGroups,     'itemGroups')}
+        {renderList('Units',               units,          'units')}
+        {renderList('Warehouse / Location', warehouses,    'warehouses')}
       </div>
     </div>
   );
