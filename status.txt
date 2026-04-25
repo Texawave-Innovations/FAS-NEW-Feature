@@ -1,0 +1,9 @@
+ M fas39/src/components/OrderAcknowledgementPrintTemplate.tsx
+ M fas39/src/components/ProformaInvoicePrintTemplate.tsx
+ M fas39/src/components/QuotationPrintTemplate.tsx
+ M fas39/src/modules/sales/CreateInvoice.tsx
+ M fas39/src/modules/sales/CreateQuotation.tsx
+ M fas39/src/modules/sales/Invoices.tsx
+ M fas39/src/modules/sales/Orders.tsx
+ M fas39/src/services/runningNumberService.ts
+ M fas39/status.txt

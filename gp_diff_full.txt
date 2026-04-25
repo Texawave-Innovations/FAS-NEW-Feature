@@ -1,0 +1,586 @@
+diff --git a/fas39/src/modules/sales/Gp.tsx b/fas39/src/modules/sales/Gp.tsx
+index fc08ed9..98f1e18 100644
+--- a/fas39/src/modules/sales/Gp.tsx
++++ b/fas39/src/modules/sales/Gp.tsx
+@@ -1,4 +1,4 @@
+-// src/modules/sales/NRGP.tsx
++// src/modules/sales/RGP.tsx
+ "use client";
+ 
+ import React, { useEffect, useRef, useState, useCallback } from "react";
+@@ -64,7 +64,7 @@ interface Address {
+   isDefault?: boolean;
+ }
+ 
+-interface NRGPLineItem {
++interface RGPLineItem {
+   id: string;
+   productId?: string;
+   productCode?: string;
+@@ -73,17 +73,17 @@ interface NRGPLineItem {
+   uom?: string;
+ }
+ 
+-interface NonReturnableGatePass {
++interface ReturnableGatePass {
+   id?: string;
+-  nrgpNumber: string;
+-  nrgpDate: string;
++  rgpNumber: string;
++  rgpDate: string;
+   customerId: string | null;
+   customerName: string;
+   customerGST?: string;
+   billingAddress?: Address | null;
+   kindAttn?: string;
+   phoneNumber?: string;
+-  lineItems: NRGPLineItem[];
++  lineItems: RGPLineItem[];
+   totalQty: number;
+   itemValue?: number; // optional, in Rs
+   remarks?: string;
+@@ -113,7 +113,7 @@ const formatAddress = (addr?: Address | null) => {
+   return `${addr.street}${addr.area ? `, ${addr.area}` : ""}\n${addr.city}, ${addr.state} - ${addr.pincode}\n${addr.country}`;
+ };
+ 
+-const NRGPPrintTemplate: React.FC<{ nrgp: NonReturnableGatePass }> = ({ nrgp }) => {
++const RGPPrintTemplate: React.FC<{ rgp: ReturnableGatePass }> = ({ rgp }) => {
+   return (
+     <div className="bg-white text-black text-xs leading-tight font-sans">
+       <div className="border-4 border-black p-4">
+@@ -138,28 +138,28 @@ const NRGPPrintTemplate: React.FC<{ nrgp: NonReturnableGatePass }> = ({ nrgp })
+ 
+         {/* Title */}
+         <div className="text-center border-b-2 border-black pb-2 mb-4">
+-          <div className="font-bold text-lg">NON-RETURNABLE GATE PASS</div>
++          <div className="font-bold text-lg">RETURNABLE GATE PASS</div>
+         </div>
+ 
+         {/* Details */}
+         <div className="grid grid-cols-2 gap-8 mb-6">
+           <div>
+-            <p><strong>NO.NRGP</strong> {nrgp.nrgpNumber}</p>
+-            <p><strong>DATE:</strong> {nrgp.nrgpDate}</p>
++            <p><strong>NO.RGP</strong> {rgp.rgpNumber}</p>
++            <p><strong>DATE:</strong> {rgp.rgpDate}</p>
+             <p className="mt-2">
+-              <strong>M/s.</strong> {nrgp.customerName || "—"}
++              <strong>M/s.</strong> {rgp.customerName || "—"}
+             </p>
+             <p className="whitespace-pre-line leading-tight">
+-              {formatAddress(nrgp.billingAddress || null)}
++              {formatAddress(rgp.billingAddress || null)}
+             </p>
+             <p className="mt-2">
+-              <strong>GSTIN:</strong> {nrgp.customerGST || "—"}
++              <strong>GSTIN:</strong> {rgp.customerGST || "—"}
+             </p>
+           </div>
+ 
+           <div className="text-right">
+-            <p><strong>Kind Atten:</strong> {nrgp.kindAttn || "—"}</p>
+-            <p><strong>Ph No:</strong> {nrgp.phoneNumber || "—"}</p>
++            <p><strong>Kind Atten:</strong> {rgp.kindAttn || "—"}</p>
++            <p><strong>Ph No:</strong> {rgp.phoneNumber || "—"}</p>
+           </div>
+         </div>
+ 
+@@ -173,7 +173,7 @@ const NRGPPrintTemplate: React.FC<{ nrgp: NonReturnableGatePass }> = ({ nrgp })
+             </tr>
+           </thead>
+           <tbody>
+-            {nrgp.lineItems.map((item, index) => (
++            {rgp.lineItems.map((item, index) => (
+               <tr key={item.id}>
+                 <td className="border border-black p-2 text-center">{index + 1}</td>
+                 <td className="border border-black p-2">
+@@ -185,7 +185,7 @@ const NRGPPrintTemplate: React.FC<{ nrgp: NonReturnableGatePass }> = ({ nrgp })
+                 <td className="border border-black p-2 text-center">{item.qty} {item.uom || "Nos"}</td>
+               </tr>
+             ))}
+-            {nrgp.lineItems.length === 0 && (
++            {rgp.lineItems.length === 0 && (
+               <tr>
+                 <td colSpan={3} className="border border-black p-4 text-center">No items added</td>
+               </tr>
+@@ -200,7 +200,7 @@ const NRGPPrintTemplate: React.FC<{ nrgp: NonReturnableGatePass }> = ({ nrgp })
+               <p className="font-semibold">[We are sending the following items for sample Approval only.]</p>
+               <p className="font-semibold">[NOT FOR SALE]</p>
+               <p className="mt-2">
+-                <strong>ITEM VALUE: Rs. {nrgp.itemValue?.toLocaleString() || "—"}</strong>
++                <strong>ITEM VALUE: Rs. {rgp.itemValue?.toLocaleString() || "—"}</strong>
+               </p>
+             </div>
+             <div className="text-center">
+@@ -216,7 +216,7 @@ const NRGPPrintTemplate: React.FC<{ nrgp: NonReturnableGatePass }> = ({ nrgp })
+           </div>
+ 
+           <p className="mt-8 text-[10px] text-gray-600 text-center">
+-            This is a system-generated Non-Returnable Gate Pass.
++            This is a system-generated Returnable Gate Pass.
+           </p>
+         </div>
+       </div>
+@@ -226,7 +226,7 @@ const NRGPPrintTemplate: React.FC<{ nrgp: NonReturnableGatePass }> = ({ nrgp })
+ 
+ // ---------------------- PREVIEW MODAL ----------------------
+ 
+-const NRGPPreviewModal = ({ nrgp, onClose }: { nrgp: NonReturnableGatePass; onClose: () => void }) => {
++const RGPPreviewModal = ({ rgp, onClose }: { rgp: ReturnableGatePass; onClose: () => void }) => {
+   const printRef = useRef<HTMLDivElement>(null);
+   const [downloading, setDownloading] = useState(false);
+ 
+@@ -237,7 +237,7 @@ const NRGPPreviewModal = ({ nrgp, onClose }: { nrgp: NonReturnableGatePass; onCl
+     try {
+       const opt = {
+         margin: [8, 8, 8, 8],
+-        filename: `${nrgp.nrgpNumber}.pdf`,
++        filename: `${rgp.rgpNumber}.pdf`,
+         image: { type: "jpeg", quality: 0.98 },
+         html2canvas: {
+           scale: 3,
+@@ -254,7 +254,7 @@ const NRGPPreviewModal = ({ nrgp, onClose }: { nrgp: NonReturnableGatePass; onCl
+       };
+ 
+       await html2pdf().set(opt).from(printRef.current).save();
+-      toast.success(`Downloaded: ${nrgp.nrgpNumber}.pdf`);
++      toast.success(`Downloaded: ${rgp.rgpNumber}.pdf`);
+     } catch (err) {
+       console.error("PDF Error:", err);
+       toast.error("Failed to generate PDF");
+@@ -268,12 +268,12 @@ const NRGPPreviewModal = ({ nrgp, onClose }: { nrgp: NonReturnableGatePass; onCl
+       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+         <DialogHeader>
+           <DialogTitle className="text-2xl font-bold text-blue-900">
+-            NRGP Preview - {nrgp.nrgpNumber}
++            RGP Preview - {rgp.rgpNumber}
+           </DialogTitle>
+         </DialogHeader>
+ 
+         <div ref={printRef} className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden">
+-          <NRGPPrintTemplate nrgp={nrgp} />
++          <RGPPrintTemplate rgp={rgp} />
+         </div>
+ 
+         <div className="flex justify-end gap-3 mt-4">
+@@ -296,28 +296,28 @@ const NRGPPreviewModal = ({ nrgp, onClose }: { nrgp: NonReturnableGatePass; onCl
+ 
+ // ---------------------- MAIN COMPONENT ----------------------
+ 
+-export default function NRGP() {
++export default function RGP() {
+   const [tab, setTab] = useState<"list" | "create">("list");
+   const [customers, setCustomers] = useState<Customer[]>([]);
+   const [flatProducts, setFlatProducts] = useState<FlatProductItem[]>([]);
+-  const [nrgps, setNRGPs] = useState<NonReturnableGatePass[]>([]);
++  const [rgps, setRGPs] = useState<ReturnableGatePass[]>([]);
+   const [loading, setLoading] = useState(true);
+   const [saving, setSaving] = useState(false);
+   const [search, setSearch] = useState("");
+   const [editingId, setEditingId] = useState<string | null>(null);
+ 
+   // Preview modal state
+-  const [previewNRGP, setPreviewNRGP] = useState<NonReturnableGatePass | null>(null);
++  const [previewRGP, setPreviewRGP] = useState<ReturnableGatePass | null>(null);
+ 
+-  const [nrgpForPrint, setNrgpForPrint] = useState<NonReturnableGatePass | null>(null);
++  const [rgpForPrint, setNrgpForPrint] = useState<ReturnableGatePass | null>(null);
+   const [isPreparingPdf, setIsPreparingPdf] = useState(false);
+ 
+   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+   const [selectedBillingAddress, setSelectedBillingAddress] = useState<Address | null>(null);
+ 
+   const [form, setForm] = useState({
+-    nrgpNumber: `NRGP25-${String(Date.now()).slice(-5)}`,
+-    nrgpDate: new Date().toISOString().split("T")[0],
++    rgpNumber: `RGP25-${String(Date.now()).slice(-5)}`,
++    rgpDate: new Date().toISOString().split("T")[0],
+     kindAttn: "",
+     phoneNumber: "",
+     phoneCountryCode: "IN",
+@@ -325,7 +325,7 @@ export default function NRGP() {
+     remarks: "",
+   });
+ 
+-  const [lineItems, setLineItems] = useState<NRGPLineItem[]>([
++  const [lineItems, setLineItems] = useState<RGPLineItem[]>([
+     {
+       id: crypto.randomUUID(),
+       productId: undefined,
+@@ -371,10 +371,10 @@ export default function NRGP() {
+   useEffect(() => {
+     const load = async () => {
+       try {
+-        const [cust, prod, nrgpData] = await Promise.all([
++        const [cust, prod, rgpData] = await Promise.all([
+           getAllRecords("sales/customers"),
+           getAllRecords("sales/products"),
+-          getAllRecords("sales/nrgp"),
++          getAllRecords("sales/rgp"),
+         ]);
+         
+         setCustomers(cust as Customer[]);
+@@ -384,7 +384,7 @@ export default function NRGP() {
+         setFlatProducts(flattenedProducts);
+         console.log("Flattened products:", flattenedProducts);
+         
+-        setNRGPs((nrgpData || []).map((d: any) => ({ ...(d as NonReturnableGatePass) })));
++        setRGPs((rgpData || []).map((d: any) => ({ ...(d as ReturnableGatePass) })));
+       } catch (e) {
+         console.error("Load error:", e);
+         toast.error("Failed to load data");
+@@ -402,10 +402,10 @@ export default function NRGP() {
+ 
+   const { totalQty } = computeTotals();
+ 
+-  const nrgpPreview: NonReturnableGatePass = {
++  const rgpPreview: ReturnableGatePass = {
+     id: editingId || undefined,
+-    nrgpNumber: form.nrgpNumber,
+-    nrgpDate: form.nrgpDate,
++    rgpNumber: form.rgpNumber,
++    rgpDate: form.rgpDate,
+     customerId: selectedCustomer?.id || null,
+     customerName: selectedCustomer?.companyName || "",
+     customerGST: (selectedCustomer as any)?.gst || "",
+@@ -418,10 +418,10 @@ export default function NRGP() {
+     remarks: form.remarks,
+   };
+ 
+-  const handleDownloadPDF = useCallback((nrgp: NonReturnableGatePass) => {
++  const handleDownloadPDF = useCallback((rgp: ReturnableGatePass) => {
+     if (isPreparingPdf) return;
+     setIsPreparingPdf(true);
+-    setNrgpForPrint(nrgp);
++    setNrgpForPrint(rgp);
+ 
+     const generatePdf = () => {
+       if (!printRef.current) {
+@@ -432,7 +432,7 @@ export default function NRGP() {
+ 
+       const opt = {
+         margin: [8, 8, 8, 8],
+-        filename: `${nrgp.nrgpNumber}.pdf`,
++        filename: `${rgp.rgpNumber}.pdf`,
+         image: { type: "jpeg", quality: 0.98 },
+         html2canvas: {
+           scale: 3,
+@@ -453,7 +453,7 @@ export default function NRGP() {
+         .from(printRef.current)
+         .save()
+         .then(() => {
+-          toast.success(`Downloaded: ${nrgp.nrgpNumber}.pdf`);
++          toast.success(`Downloaded: ${rgp.rgpNumber}.pdf`);
+         })
+         .catch((err) => {
+           console.error("PDF Error:", err);
+@@ -473,8 +473,8 @@ export default function NRGP() {
+   const resetForm = () => {
+     setEditingId(null);
+     setForm({
+-      nrgpNumber: `NRGP25-${String(Date.now()).slice(-5)}`,
+-      nrgpDate: new Date().toISOString().split("T")[0],
++      rgpNumber: `RGP25-${String(Date.now()).slice(-5)}`,
++      rgpDate: new Date().toISOString().split("T")[0],
+       kindAttn: "",
+       phoneNumber: "",
+       phoneCountryCode: "IN",
+@@ -521,11 +521,11 @@ export default function NRGP() {
+     setLineItems((prev) => prev.filter((li) => li.id !== id));
+   };
+ 
+-  const updateLineItem = (id: string, field: keyof NRGPLineItem, value: any) => {
++  const updateLineItem = (id: string, field: keyof RGPLineItem, value: any) => {
+     setLineItems((prev) =>
+       prev.map((li) => {
+         if (li.id !== id) return li;
+-        const updated: NRGPLineItem = { ...li, [field]: value };
++        const updated: RGPLineItem = { ...li, [field]: value };
+         
+         // NEW: Handle product selection from flattened products
+         if (field === "productCode") {
+@@ -549,8 +549,8 @@ export default function NRGP() {
+     if (lineItems.some((li) => !li.description || !li.qty || Number(li.qty) <= 0))
+       return toast.error("Complete all line items");
+ 
+-    const payload: NonReturnableGatePass = {
+-      ...nrgpPreview,
++    const payload: ReturnableGatePass = {
++      ...rgpPreview,
+       customerId: selectedCustomer.id!,
+       customerName: selectedCustomer.companyName,
+       customerGST: (selectedCustomer as any)?.gst || "",
+@@ -565,15 +565,15 @@ export default function NRGP() {
+     setSaving(true);
+     try {
+       if (editingId) {
+-        await updateRecord("sales/nrgp", editingId, payload);
+-        toast.success("NRGP Updated");
++        await updateRecord("sales/rgp", editingId, payload);
++        toast.success("RGP Updated");
+       } else {
+-        const ref = await createRecord("sales/nrgp", payload);
++        const ref = await createRecord("sales/rgp", payload);
+         payload.id = ref.id;
+-        toast.success("NRGP Created");
++        toast.success("RGP Created");
+       }
+-      const fresh = await getAllRecords("sales/nrgp");
+-      setNRGPs((fresh || []).map((d: any) => ({ ...(d as NonReturnableGatePass) })));
++      const fresh = await getAllRecords("sales/rgp");
++      setRGPs((fresh || []).map((d: any) => ({ ...(d as ReturnableGatePass) })));
+       setTab("list");
+       resetForm();
+     } catch (e: any) {
+@@ -585,13 +585,13 @@ export default function NRGP() {
+ 
+   const handleEdit = async (id: string) => {
+     try {
+-      const data: any = await getRecordById("sales/nrgp", id);
+-      if (!data) return toast.error("NRGP not found");
++      const data: any = await getRecordById("sales/rgp", id);
++      if (!data) return toast.error("RGP not found");
+ 
+       setEditingId(id);
+       setForm({
+-        nrgpNumber: data.nrgpNumber,
+-        nrgpDate: data.nrgpDate,
++        rgpNumber: data.rgpNumber,
++        rgpDate: data.rgpDate,
+         kindAttn: data.kindAttn || "",
+         phoneNumber: data.phoneNumber || "",
+         phoneCountryCode: data.phoneCountryCode || "IN",
+@@ -612,33 +612,33 @@ export default function NRGP() {
+ 
+       setTab("create");
+     } catch {
+-      toast.error("Failed to load NRGP");
++      toast.error("Failed to load RGP");
+     }
+   };
+ 
+   const handleDelete = async (id: string) => {
+-    if (!window.confirm("Delete this NRGP permanently?")) return;
++    if (!window.confirm("Delete this RGP permanently?")) return;
+     try {
+-      await deleteRecord("sales/nrgp", id);
+-      setNRGPs((prev) => prev.filter((d) => d.id !== id));
++      await deleteRecord("sales/rgp", id);
++      setRGPs((prev) => prev.filter((d) => d.id !== id));
+       toast.success("Deleted");
+     } catch {
+       toast.error("Delete failed");
+     }
+   };
+ 
+-  // View NRGP
+-  const handleView = (nrgp: NonReturnableGatePass) => {
+-    setPreviewNRGP(nrgp);
++  // View RGP
++  const handleView = (rgp: ReturnableGatePass) => {
++    setPreviewRGP(rgp);
+   };
+ 
+-  const filteredNRGPs = nrgps.filter((nrgp) => {
++  const filteredRGPs = rgps.filter((rgp) => {
+     const q = search.toLowerCase();
+-    return !q || nrgp.nrgpNumber.toLowerCase().includes(q) || (nrgp.customerName || "").toLowerCase().includes(q);
++    return !q || rgp.rgpNumber.toLowerCase().includes(q) || (rgp.customerName || "").toLowerCase().includes(q);
+   });
+ 
+   if (loading) {
+-    return <div className="p-10 text-center text-lg">Loading Non-Returnable Gate Passes…</div>;
++    return <div className="p-10 text-center text-lg">Loading Returnable Gate Passes…</div>;
+   }
+ 
+   return (
+@@ -646,11 +646,11 @@ export default function NRGP() {
+       <div className="max-w-7xl mx-auto px-4">
+         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+           <div className="flex items-center justify-between mb-6">
+-            <h1 className="text-3xl font-bold text-blue-900">Non-Returnable Gate Pass</h1>
++            <h1 className="text-3xl font-bold text-blue-900">Returnable Gate Pass</h1>
+             <TabsList>
+               <TabsTrigger value="list">List</TabsTrigger>
+               <TabsTrigger value="create">
+-                {editingId ? "Edit NRGP" : "Create NRGP"}
++                {editingId ? "Edit RGP" : "Create RGP"}
+               </TabsTrigger>
+             </TabsList>
+           </div>
+@@ -659,13 +659,13 @@ export default function NRGP() {
+           <TabsContent value="list">
+             <Card>
+               <CardHeader className="flex flex-row items-center justify-between">
+-                <CardTitle>All Non-Returnable Gate Passes</CardTitle>
++                <CardTitle>All Returnable Gate Passes</CardTitle>
+                 <div className="flex gap-2 items-center">
+                   <div className="relative">
+                     <Search className="h-4 w-4 absolute left-2 top-2.5 text-gray-400" />
+                     <Input
+                       className="pl-8 w-64"
+-                      placeholder="Search NRGP or Customer"
++                      placeholder="Search RGP or Customer"
+                       value={search}
+                       onChange={(e) => setSearch(e.target.value)}
+                     />
+@@ -674,27 +674,27 @@ export default function NRGP() {
+                     variant="outline"
+                     size="icon"
+                     onClick={async () => {
+-                      const fresh = await getAllRecords("sales/nrgp");
+-                      setNRGPs((fresh || []).map((d: any) => ({ ...(d as NonReturnableGatePass) })));
++                      const fresh = await getAllRecords("sales/rgp");
++                      setRGPs((fresh || []).map((d: any) => ({ ...(d as ReturnableGatePass) })));
+                       toast.success("Refreshed");
+                     }}
+                   >
+                     <RefreshCw className="h-4 w-4" />
+                   </Button>
+                   <Button onClick={() => { resetForm(); setTab("create"); }}>
+-                    <Plus className="h-4 w-4 mr-2" /> New NRGP
++                    <Plus className="h-4 w-4 mr-2" /> New RGP
+                   </Button>
+                 </div>
+               </CardHeader>
+               <CardContent>
+-                {filteredNRGPs.length === 0 ? (
+-                  <p className="text-center text-gray-500 py-8">No NRGPs found</p>
++                {filteredRGPs.length === 0 ? (
++                  <p className="text-center text-gray-500 py-8">No RGPs found</p>
+                 ) : (
+                   <div className="overflow-x-auto">
+                     <table className="w-full text-sm border">
+                       <thead className="bg-gray-100">
+                         <tr>
+-                          <th className="border px-3 py-2 text-left">NRGP No</th>
++                          <th className="border px-3 py-2 text-left">RGP No</th>
+                           <th className="border px-3 py-2 text-left">Date</th>
+                           <th className="border px-3 py-2 text-left">Customer</th>
+                           <th className="border px-3 py-2 text-right">Qty</th>
+@@ -703,29 +703,29 @@ export default function NRGP() {
+                         </tr>
+                       </thead>
+                       <tbody>
+-                        {filteredNRGPs.map((nrgp) => (
+-                          <tr key={nrgp.id}>
+-                            <td className="border px-3 py-2">{nrgp.nrgpNumber}</td>
+-                            <td className="border px-3 py-2">{nrgp.nrgpDate}</td>
+-                            <td className="border px-3 py-2">{nrgp.customerName}</td>
+-                            <td className="border px-3 py-2 text-right">{nrgp.totalQty}</td>
++                        {filteredRGPs.map((rgp) => (
++                          <tr key={rgp.id}>
++                            <td className="border px-3 py-2">{rgp.rgpNumber}</td>
++                            <td className="border px-3 py-2">{rgp.rgpDate}</td>
++                            <td className="border px-3 py-2">{rgp.customerName}</td>
++                            <td className="border px-3 py-2 text-right">{rgp.totalQty}</td>
+                             <td className="border px-3 py-2 text-right">
+-                              {nrgp.itemValue ? `₹${nrgp.itemValue.toLocaleString()}` : "—"}
++                              {rgp.itemValue ? `₹${rgp.itemValue.toLocaleString()}` : "—"}
+                             </td>
+                             <td className="border px-3 py-2 text-center">
+                               <div className="flex justify-center gap-1">
+                                 <Button 
+                                   size="icon" 
+                                   variant="outline" 
+-                                  onClick={() => handleView(nrgp)}
+-                                  title="View NRGP"
++                                  onClick={() => handleView(rgp)}
++                                  title="View RGP"
+                                 >
+                                   <Eye className="h-4 w-4 text-blue-600" />
+                                 </Button>
+-                                <Button size="icon" variant="outline" onClick={() => handleEdit(nrgp.id!)}>
++                                <Button size="icon" variant="outline" onClick={() => handleEdit(rgp.id!)}>
+                                   <Edit className="h-4 w-4" />
+                                 </Button>
+-                                <Button size="icon" variant="outline" onClick={() => handleDelete(nrgp.id!)}>
++                                <Button size="icon" variant="outline" onClick={() => handleDelete(rgp.id!)}>
+                                   <Trash2 className="h-4 w-4 text-red-600" />
+                                 </Button>
+                               </div>
+@@ -745,17 +745,17 @@ export default function NRGP() {
+             <div className="grid lg:grid-cols-2 gap-8">
+               {/* LEFT: FORM */}
+               <div className="space-y-6">
+-                {/* NRGP Details */}
++                {/* RGP Details */}
+                 <Card>
+-                  <CardHeader><CardTitle>NRGP Details</CardTitle></CardHeader>
++                  <CardHeader><CardTitle>RGP Details</CardTitle></CardHeader>
+                   <CardContent className="grid grid-cols-2 gap-4">
+                     <div>
+-                      <Label>NRGP Number</Label>
+-                      <Input value={form.nrgpNumber} onChange={(e) => setForm(p => ({ ...p, nrgpNumber: e.target.value }))} />
++                      <Label>RGP Number</Label>
++                      <Input value={form.rgpNumber} onChange={(e) => setForm(p => ({ ...p, rgpNumber: e.target.value }))} />
+                     </div>
+                     <div>
+                       <Label>Date</Label>
+-                      <Input type="date" value={form.nrgpDate} onChange={(e) => setForm(p => ({ ...p, nrgpDate: e.target.value }))} />
++                      <Input type="date" value={form.rgpDate} onChange={(e) => setForm(p => ({ ...p, rgpDate: e.target.value }))} />
+                     </div>
+                     <div>
+                       <Label>Kind Attention</Label>
+@@ -829,7 +829,14 @@ export default function NRGP() {
+                             <Select value={li.productCode || ""} onValueChange={(v) => updateLineItem(li.id, "productCode", v)}>
+                               <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
+                               <SelectContent>
+-                                {flatProducts.map((p) => (
++                                {flatProducts
++                                  .filter((p) =>
++                                    p.productCode === li.productCode ||
++                                    !lineItems.some(
++                                      (other) => other.id !== li.id && other.productCode === p.productCode
++                                    )
++                                  )
++                                  .map((p) => (
+                                   <SelectItem key={p.id} value={p.productCode}>
+                                     {p.productCode} - {p.category} ({p.parentName})
+                                   </SelectItem>
+@@ -873,7 +880,7 @@ export default function NRGP() {
+                       <div className="flex gap-3">
+                         <Button variant="outline" onClick={resetForm} disabled={saving}>Reset</Button>
+                         <Button onClick={handleSave} disabled={saving} className="bg-blue-700 hover:bg-blue-800">
+-                          {saving ? "Saving..." : editingId ? "Update NRGP" : "Save NRGP"}
++                          {saving ? "Saving..." : editingId ? "Update RGP" : "Save RGP"}
+                         </Button>
+                       </div>
+                     </div>
+@@ -887,18 +894,18 @@ export default function NRGP() {
+                   <div className="bg-gradient-to-r from-blue-700 to-blue-900 text-white p-4 text-center font-bold text-lg">
+                     Live Preview - A4
+                     <div className="text-sm mt-1">
+-                      NRGP: {nrgpPreview.nrgpNumber} | {nrgpPreview.nrgpDate}
++                      RGP: {rgpPreview.rgpNumber} | {rgpPreview.rgpDate}
+                     </div>
+                   </div>
+ 
+                   <div ref={printRef} className="bg-white p-4">
+-                    <NRGPPrintTemplate nrgp={nrgpForPrint || nrgpPreview} />
++                    <RGPPrintTemplate rgp={rgpForPrint || rgpPreview} />
+                   </div>
+ 
+                   <div className="p-4 border-t bg-gray-50 flex justify-end">
+                     <Button
+                       size="sm"
+-                      onClick={() => handleDownloadPDF(nrgpPreview)}
++                      onClick={() => handleDownloadPDF(rgpPreview)}
+                       disabled={isPreparingPdf}
+                     >
+                       {isPreparingPdf ? "Preparing..." : <><Download className="h-4 w-4 mr-2" /> Download PDF</>}
+@@ -911,10 +918,10 @@ export default function NRGP() {
+         </Tabs>
+ 
+         {/* Preview Modal */}
+-        {previewNRGP && (
+-          <NRGPPreviewModal
+-            nrgp={previewNRGP}
+-            onClose={() => setPreviewNRGP(null)}
++        {previewRGP && (
++          <RGPPreviewModal
++            rgp={previewRGP}
++            onClose={() => setPreviewRGP(null)}
+           />
+         )}
+       </div>

@@ -1,0 +1,10 @@
+ fas39/src/components/QuotationPrintTemplate.tsx |   2 +-
+ fas39/src/modules/sales/BomView.tsx             |   4 +-
+ fas39/src/modules/sales/CreateInvoice.tsx       | 601 ++++++++++--------
+ fas39/src/modules/sales/CreateQuotation.tsx     |   5 +-
+ fas39/src/modules/sales/DC.tsx                  |   9 +-
+ fas39/src/modules/sales/Gp.tsx                  | 211 +++----
+ fas39/src/modules/sales/Invoices.tsx            | 781 +++++++++++++-----------
+ fas39/src/modules/sales/Ngp.tsx                 |   9 +-
+ fas39/src/modules/sales/Orders.tsx              |   2 +-
+ 9 files changed, 910 insertions(+), 714 deletions(-)

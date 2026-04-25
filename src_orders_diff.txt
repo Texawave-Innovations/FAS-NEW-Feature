@@ -1,0 +1,13 @@
+diff --git a/fas39/src/modules/sales/Orders.tsx b/fas39/src/modules/sales/Orders.tsx
+index 1f7ee12..2feb9bd 100644
+--- a/fas39/src/modules/sales/Orders.tsx
++++ b/fas39/src/modules/sales/Orders.tsx
+@@ -2687,7 +2687,7 @@ export default function SalesOrders() {
+             style={{ background: '#f3f4f6', padding: '16px', borderRadius: '8px' }}
+           >
+             {previewOrder && (
+-              <div data-pdf-template>
++              <div data-pdf-template style={{ width: 'fit-content', margin: '0 auto' }}>
+                 {previewType === 'oa'
+                   ? <OrderAcknowledgementPrintTemplate order={previewOrder} customers={customers} />
+                   : <ProformaInvoicePrintTemplate order={previewOrder} customers={customers} />

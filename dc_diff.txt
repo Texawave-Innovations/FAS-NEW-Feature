@@ -1,0 +1,20 @@
+diff --git a/fas39/src/modules/sales/DC.tsx b/fas39/src/modules/sales/DC.tsx
+index c68b725..7249bd4 100644
+--- a/fas39/src/modules/sales/DC.tsx
++++ b/fas39/src/modules/sales/DC.tsx
+@@ -855,7 +855,14 @@ export default function DC() {
+                             <Select value={li.productCode || ""} onValueChange={(v) => updateLineItem(li.id, "productCode", v)}>
+                               <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
+                               <SelectContent>
+-                                {flatProducts.map((p) => (
++                                {flatProducts
++                                  .filter((p) =>
++                                    p.productCode === li.productCode ||
++                                    !lineItems.some(
++                                      (other) => other.id !== li.id && other.productCode === p.productCode
++                                    )
++                                  )
++                                  .map((p) => (
+                                   <SelectItem key={p.id} value={p.productCode}>
+                                     {p.productCode} - {p.category} ({p.parentName})
+                                   </SelectItem>
