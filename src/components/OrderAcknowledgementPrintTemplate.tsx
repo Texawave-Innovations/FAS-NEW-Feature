@@ -24,8 +24,11 @@ interface SalesOrder {
   subtotal: number;
   cgstAmount: number;
   sgstAmount: number;
+  igstAmount: number;
   cgstPercent: number;
   sgstPercent: number;
+  igstPercent: number;
+  isTNCustomer?: boolean;
   transportCharge: number;
   transportChargePercent: number;
   grandTotal: number;
@@ -91,8 +94,8 @@ const numberToWords = (num: number): string => {
 const buildPages = (items: any[]): any[][] => {
   if (!items || items.length === 0) return [[]];
 
-  const FIRST_PAGE_LIMIT = 8;
-  const SUBSEQUENT_PAGE_LIMIT = 12;
+  const FIRST_PAGE_LIMIT = 5;
+  const SUBSEQUENT_PAGE_LIMIT = 11;
 
   // If everything fits on the first page, return as-is (footer fits alongside items)
   if (items.length <= FIRST_PAGE_LIMIT) return [items];
@@ -215,6 +218,13 @@ export default function OrderAcknowledgementPrintTemplate({ order, customers }: 
               <td style={{ fontWeight: '900', paddingLeft: '10px', textAlign: 'right', paddingTop: '2px', paddingBottom: '2px' }}>{symbol}{fmt(order.sgstAmount)}</td>
             </tr>
           </>
+        )}
+
+        {showGST && order.igstAmount > 0 && (
+          <tr>
+            <td style={{ paddingRight: '10px', paddingTop: '2px', paddingBottom: '2px', textAlign: 'right', fontWeight: '800' }}>IGST @{order.igstPercent}%</td>
+            <td style={{ fontWeight: '900', paddingLeft: '10px', textAlign: 'right', paddingTop: '2px', paddingBottom: '2px' }}>{symbol}{fmt(order.igstAmount)}</td>
+          </tr>
         )}
 
         {order.transportCharge > 0 && (

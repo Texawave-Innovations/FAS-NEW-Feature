@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Search, Plus, Edit, Trash2, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
-import { deleteRecord, getAllRecords } from '@/services/firebase';
+import { softDeleteRecord, getAllRecords } from '@/services/firebase';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface Address {
@@ -62,11 +62,12 @@ export default function Customers() {
   };
 
   const handleDelete = async (id: string, customerCode: string) => {
-    if (!confirm(`Delete customer ${customerCode}? This cannot be undone.`)) return;
+    if (!confirm(`Move customer "${customerCode}" to Recycle Bin?`)) return;
 
     try {
-      await deleteRecord('sales/customers', id);
-      toast.success('Customer deleted successfully');
+      const user = JSON.parse(localStorage.getItem('erp_user') || '{}')
+      await softDeleteRecord('sales/customers', id, user?.name || user?.username || 'unknown');
+      toast.success('Customer moved to Recycle Bin');
       loadCustomers();
     } catch (error) {
       toast.error('Failed to delete customer');

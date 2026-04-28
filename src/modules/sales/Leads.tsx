@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Lead, Customer } from '@/types';
-import { createRecord, updateRecord, deleteRecord, getAllRecords } from '@/services/firebase';
+import { createRecord, updateRecord, softDeleteRecord, getAllRecords } from '@/services/firebase';
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -86,10 +86,11 @@ export default function Leads() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this lead?')) return;
+    if (!confirm('Move this lead to Recycle Bin?')) return;
     try {
-      await deleteRecord('sales/leads', id);
-      toast.success('Lead deleted successfully');
+      const user = JSON.parse(localStorage.getItem('erp_user') || '{}')
+      await softDeleteRecord('sales/leads', id, user?.name || user?.username || 'unknown');
+      toast.success('Lead moved to Recycle Bin');
       loadLeads();
     } catch (error) {
       toast.error('Failed to delete lead');

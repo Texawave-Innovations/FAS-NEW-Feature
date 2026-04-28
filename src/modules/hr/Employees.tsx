@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
-import { deleteRecord, getAllRecords, updateRecord } from '@/services/firebase';
+import { softDeleteRecord, getAllRecords, updateRecord } from '@/services/firebase';
 import { Employee } from '@/types';
 
 const DEPARTMENTS = ['All Departments', 'Staff', 'Worker', 'Other Workers'] as const;
@@ -148,11 +148,13 @@ export default function EmployeesList() {
       toast({ title: 'Access Denied', description: 'Only admins can delete.', variant: 'destructive' });
       return;
     }
-    if (!confirm('Are you sure you want to delete this employee?')) return;
+    if (!confirm('Move this employee to the Recycle Bin?')) return;
 
     try {
-      await deleteRecord('hr/employees', id);
-      toast({ title: 'Employee deleted' });
+      const userData = localStorage.getItem('erp_user');
+      const user = userData ? JSON.parse(userData) : {};
+      await softDeleteRecord('hr/employees', id, user?.name || user?.username || 'unknown');
+      toast({ title: 'Employee moved to Recycle Bin' });
       fetchEmployees();
     } catch {
       toast({ title: 'Delete failed', variant: 'destructive' });

@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Edit, Download, Trash2, Search, X, Filter, Calendar, Eye, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAllRecords, updateRecord, deleteRecord } from '@/services/firebase';
+import { getAllRecords, updateRecord, softDeleteRecord } from '@/services/firebase';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import html2pdf from 'html2pdf.js';
@@ -188,16 +188,17 @@ export default function Quotations() {
   const handleDelete = async (id: string, quoteNumber: string) => {
     if (
       !confirm(
-        `Are you sure you want to delete quotation ${quoteNumber}? This action cannot be undone.`
+        `Move quotation ${quoteNumber} to Recycle Bin?`
       )
     ) {
       return;
     }
 
     try {
-      await deleteRecord('sales/quotations', id);
+      const user = JSON.parse(localStorage.getItem('erp_user') || '{}')
+      await softDeleteRecord('sales/quotations', id, user?.name || user?.username || 'unknown');
       setQuotations((prev) => prev.filter((q) => q.id !== id));
-      toast.success(`Quotation ${quoteNumber} deleted successfully`);
+      toast.success(`Quotation ${quoteNumber} moved to Recycle Bin`);
     } catch (error) {
       console.error(error);
       toast.error('Failed to delete quotation');

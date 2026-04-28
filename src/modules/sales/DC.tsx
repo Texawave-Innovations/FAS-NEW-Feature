@@ -49,7 +49,7 @@ import {
   getAllRecords,
   getRecordById,
   updateRecord,
-  deleteRecord,
+  softDeleteRecord,
 } from "@/services/firebase";
 import { generateNextNumber, peekNextNumber } from '@/services/runningNumberService';
 import fas from "./fas.png"; // Logo
@@ -790,8 +790,19 @@ export default function DC() {
       setSelectedCustomer(cust);
       setSelectedBillingAddress(data.billingAddress || null);
       
-      // Auto-populate to ensure quantities are correct based on current availability
-      updateInvoicedItems(data.customerId, allInvoices, deliveryChallans, id);
+      // Load the actual saved line items from the DC record
+      // (not auto-recalculated, so what was saved is what you see)
+      const savedItems: DCLineItem[] = (data.lineItems || []).map((item: any) => ({
+        id: item.id || crypto.randomUUID(),
+        productId: item.productId,
+        productCode: item.productCode || '',
+        description: item.description || '',
+        hsnCode: item.hsnCode || '',
+        qty: item.qty ?? 0,
+        uom: item.uom || 'Nos',
+        availableQty: item.availableQty,
+      }));
+      setLineItems(savedItems);
       
       setTab("create");
     } catch {
@@ -799,18 +810,35 @@ export default function DC() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this Delivery Challan permanently?")) return;
+  const handleDelete = async (id: string, dcNumber: string) => {
+    if (!window.confirm(`Move Delivery Challan "${dcNumber}" to Recycle Bin?`)) return;
     try {
-      await deleteRecord("sales/deliveryChallans", id);
+      const user = JSON.parse(localStorage.getItem('erp_user') || '{}')
+      await softDeleteRecord("sales/deliveryChallans", id, user?.name || user?.username || 'unknown');
       setDeliveryChallans((prev) => prev.filter((d) => d.id !== id));
-      toast.success("Deleted");
+      toast.success("Delivery Challan moved to Recycle Bin");
     } catch {
       toast.error("Delete failed");
     }
   };
 
-  const handleView = (dc: DeliveryChallan) => setPreviewDC(dc);
+  const handleView = async (dc: DeliveryChallan) => {
+    try {
+      // Always fetch fresh data from DB to ensure preview is up-to-date
+      if (dc.id) {
+        const freshData = await getRecordById("sales/deliveryChallans", dc.id) as any;
+        if (freshData) {
+          setPreviewDC({ ...freshData, id: dc.id } as DeliveryChallan);
+          return;
+        }
+      }
+      // Fallback to the passed object if fetch fails
+      setPreviewDC(dc);
+    } catch {
+      // Fallback to the passed object on error
+      setPreviewDC(dc);
+    }
+  };
 
   const filteredDCs = deliveryChallans
     .filter((dc) => {
@@ -913,8 +941,8 @@ export default function DC() {
                                 <Button size="icon" variant="outline" onClick={() => handleEdit(dc.id!)}>
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button size="icon" variant="outline" onClick={() => handleDelete(dc.id!)}>
-                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                <Button size="icon" variant="outline" onClick={() => handleDelete(dc.id!, dc.dcNumber)} title="Move to Recycle Bin">
+                                  <Trash2 className="h-4 w-4 text-orange-500" />
                                 </Button>
                               </div>
                             </td>

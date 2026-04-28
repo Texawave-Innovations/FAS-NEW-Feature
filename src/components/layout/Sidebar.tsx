@@ -11,7 +11,8 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -122,6 +123,28 @@ export const Sidebar = () => {
           })}
         </ul>
       </nav>
+
+      {/* Admin-only: Recycle Bin */}
+      {user?.role === 'admin' && (
+        <div className="px-2 pb-1">
+          <NavLink
+            to="/recycle-bin"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                'hover:bg-red-50 hover:text-red-700',
+                isActive
+                  ? 'bg-red-100 text-red-700'
+                  : 'text-muted-foreground'
+              )
+            }
+            title={collapsed ? 'Recycle Bin' : undefined}
+          >
+            <Trash2 className="h-5 w-5 flex-shrink-0 text-red-500" />
+            {!collapsed && <span>Recycle Bin</span>}
+          </NavLink>
+        </div>
+      )}
 
       {/* Logout */}
       <div className="p-2 border-t border-border">

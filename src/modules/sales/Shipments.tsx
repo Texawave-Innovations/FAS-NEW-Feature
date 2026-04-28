@@ -20,7 +20,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import fas from './fas.png';
 
-import { getRecordById, updateRecord, createRecord, getAllRecords, deleteRecord } from '@/services/firebase';
+import { getRecordById, updateRecord, createRecord, getAllRecords, softDeleteRecord } from '@/services/firebase';
 import { generateNextNumber, peekNextNumber } from '@/services/runningNumberService';
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
@@ -915,11 +915,12 @@ export default function Shipments() {
     setPeekedShipmentId('');
   };
 
-  const handleDelete = async (firebaseKey: string) => {
-    if (!confirm('Delete this shipment permanently?')) return;
+  const handleDelete = async (firebaseKey: string, shipmentId: string) => {
+    if (!confirm(`Move shipment "${shipmentId}" to Recycle Bin?`)) return;
     try {
-      await deleteRecord('sales/shipments', firebaseKey);
-      toast.success('Shipment deleted');
+      const user = JSON.parse(localStorage.getItem('erp_user') || '{}')
+      await softDeleteRecord('sales/shipments', firebaseKey, user?.name || user?.username || 'unknown');
+      toast.success('Shipment moved to Recycle Bin');
       loadData();
     } catch {
       toast.error('Delete failed');
@@ -1319,8 +1320,8 @@ export default function Shipments() {
                           <Button size="sm" variant="ghost" onClick={() => handleEdit(s)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => s.id && handleDelete(s.id)}>
-                            <Trash2 className="h-4 w-4 text-red-600" />
+                          <Button size="sm" variant="ghost" onClick={() => s.id && handleDelete(s.id, s.shipmentId)} title="Move to Recycle Bin">
+                            <Trash2 className="h-4 w-4 text-orange-500" />
                           </Button>
                         </TableCell>
                       </TableRow>

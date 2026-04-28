@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
@@ -68,7 +67,7 @@ import {
   ChevronDown,
   Check,
 } from 'lucide-react';
-import { getAllRecords, createRecord, updateRecord, deleteRecord } from '@/services/firebase';
+import { getAllRecords, createRecord, updateRecord, deleteRecord, softDeleteRecord } from '@/services/firebase';
 import { getFormattedCustomerAddress } from '@/utils/addressUtils';
 import { generateNextNumber } from '@/services/runningNumberService';
 
@@ -137,8 +136,11 @@ interface Quotation {
   subtotal?: number;
   cgstAmount?: number;
   sgstAmount?: number;
+  igstAmount?: number;
   cgstPercent?: number;
   sgstPercent?: number;
+  igstPercent?: number;
+  isTNCustomer?: boolean;
   transportCharge?: number;
   transportChargePercent?: number;
   status?: string;
@@ -172,8 +174,11 @@ interface SalesOrder {
   subtotal: number;
   cgstAmount: number;
   sgstAmount: number;
+  igstAmount: number;
   cgstPercent: number;
   sgstPercent: number;
+  igstPercent: number;
+  isTNCustomer?: boolean;
   transportCharge: number;
   transportChargePercent: number;
   transportChargeType?: 'fixed' | 'percent';
@@ -294,6 +299,10 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 const DEFAULT_STATUS: SalesOrderStatus = 'Pending';
 const ITEMS_PER_PAGE = 12;
 const fmt = (num: number) => Number(num || 0).toFixed(2);
+
+// Detect if customer is in Tamil Nadu (intra-state) based on GST number prefix
+const isTamilNaduGST = (gst: string) =>
+  typeof gst === 'string' && gst.trim().toUpperCase().startsWith('33');
 
 const numberToWords = (num: number, currency: string): string => {
   if (currency !== "INR") return "";
@@ -762,6 +771,7 @@ export default function SalesOrders() {
   }, []);
 
   // Auto-populate GST fields when customer is selected
+  // Determine IGST vs CGST+SGST based on customer state (GST prefix 33 = Tamil Nadu = intra-state)
   useEffect(() => {
     if (!manualCustomerId) {
       setManualCgstPercent(undefined);
@@ -771,9 +781,20 @@ export default function SalesOrders() {
     }
     const customer = customers.find((c: any) => c.id === manualCustomerId);
     if (customer) {
-      setManualCgstPercent(customer.cgst ? Number(customer.cgst) : undefined);
-      setManualSgstPercent(customer.sgst ? Number(customer.sgst) : undefined);
-      setManualIgstPercent(customer.igst ? Number(customer.igst) : undefined);
+      const customerGST = customer.gst || '';
+      const isTN = isTamilNaduGST(customerGST);
+
+      if (isTN) {
+        // Intra-state: apply CGST + SGST, clear IGST
+        setManualCgstPercent(customer.cgst ? Number(customer.cgst) : 9);
+        setManualSgstPercent(customer.sgst ? Number(customer.sgst) : 9);
+        setManualIgstPercent(undefined);
+      } else {
+        // Inter-state: apply IGST, clear CGST + SGST
+        setManualCgstPercent(undefined);
+        setManualSgstPercent(undefined);
+        setManualIgstPercent(customer.igst ? Number(customer.igst) : 18);
+      }
     }
   }, [manualCustomerId, customers]);
 
@@ -831,8 +852,11 @@ export default function SalesOrders() {
       subtotal: Number(raw.subtotal) || 0,
       cgstAmount: Number(raw.cgstAmount) || 0,
       sgstAmount: Number(raw.sgstAmount) || 0,
+      igstAmount: Number(raw.igstAmount) || 0,
       cgstPercent: Number(raw.cgstPercent) || 0,
       sgstPercent: Number(raw.sgstPercent) || 0,
+      igstPercent: Number(raw.igstPercent) || 0,
+      isTNCustomer: raw.isTNCustomer,
       transportCharge: Number(raw.transportCharge) || 0,
       transportChargePercent: Number(raw.transportChargePercent) || 0,
       grandTotal: Number(raw.grandTotal) || 0,
@@ -1142,8 +1166,11 @@ export default function SalesOrders() {
         subtotal: selectedQuotation.subtotal || 0,
         cgstAmount: selectedQuotation.cgstAmount || 0,
         sgstAmount: selectedQuotation.sgstAmount || 0,
+        igstAmount: selectedQuotation.igstAmount || 0,
         cgstPercent: selectedQuotation.cgstPercent || 0,
         sgstPercent: selectedQuotation.sgstPercent || 0,
+        igstPercent: selectedQuotation.igstPercent || 0,
+        isTNCustomer: selectedQuotation.isTNCustomer,
         transportCharge: selectedQuotation.transportCharge || 0,
         transportChargePercent: selectedQuotation.transportChargePercent || 0,
         grandTotal: selectedQuotation.grandTotal || 0,
@@ -1207,8 +1234,11 @@ export default function SalesOrders() {
         subtotal: totals.subtotal,
         cgstAmount: totals.cgst,
         sgstAmount: totals.sgst,
-        cgstPercent: manualCgstPercent,
-        sgstPercent: manualSgstPercent,
+        igstAmount: totals.igst,
+        cgstPercent: manualCgstPercent || 0,
+        sgstPercent: manualSgstPercent || 0,
+        igstPercent: manualIgstPercent || 0,
+        isTNCustomer: manualIgstPercent === undefined || manualIgstPercent === 0 ? true : false,
         transportCharge: totals.transportCharge,
         transportChargePercent: manualTransportChargeType === 'percent' ? (manualTransportChargePercent || 0) : 0,
         transportChargeType: manualTransportChargeType,
@@ -1261,8 +1291,9 @@ export default function SalesOrders() {
   const handleDeleteOrder = async () => {
     if (!selectedOrder) return;
     try {
-      await deleteRecord('sales/orderAcknowledgements', selectedOrder.id);
-      toast.success(`${selectedOrder.soNumber} deleted permanently`);
+      const user = JSON.parse(localStorage.getItem('erp_user') || '{}')
+      await softDeleteRecord('sales/orderAcknowledgements', selectedOrder.id, user?.name || user?.username || 'unknown');
+      toast.success(`${selectedOrder.soNumber} moved to Recycle Bin`);
       setIsDeleteOpen(false);
       setSelectedOrder(null);
       loadAllData();
@@ -2124,7 +2155,7 @@ export default function SalesOrders() {
                           <span>Subtotal:</span>
                           <span className="font-medium">{CURRENCY_SYMBOLS[manualCurrency]}{formatAmount(calculateManualOrderTotals().subtotal, manualCurrency)}</span>
                         </div>
-                        {manualCurrency === 'INR' && (
+                        {manualCurrency === 'INR' && manualCgstPercent !== undefined && manualCgstPercent > 0 && (
                           <>
                             <div className="flex justify-between">
                               <span>CGST @ {manualCgstPercent}%:</span>
@@ -2135,6 +2166,12 @@ export default function SalesOrders() {
                               <span className="font-medium">{CURRENCY_SYMBOLS[manualCurrency]}{formatAmount(calculateManualOrderTotals().sgst, manualCurrency)}</span>
                             </div>
                           </>
+                        )}
+                        {manualCurrency === 'INR' && manualIgstPercent !== undefined && manualIgstPercent > 0 && (
+                          <div className="flex justify-between">
+                            <span>IGST @ {manualIgstPercent}%:</span>
+                            <span className="font-medium">{CURRENCY_SYMBOLS[manualCurrency]}{formatAmount(calculateManualOrderTotals().igst, manualCurrency)}</span>
+                          </div>
                         )}
                         {calculateManualOrderTotals().transportCharge > 0 && (
                           <div className="flex justify-between">

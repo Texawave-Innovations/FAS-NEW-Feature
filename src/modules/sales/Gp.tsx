@@ -39,13 +39,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Customer } from "@/types";
-import {
-  createRecord,
-  getAllRecords,
-  getRecordById,
-  updateRecord,
-  deleteRecord,
-} from "@/services/firebase";
+import { getAllRecords, createRecord, updateRecord, softDeleteRecord, getRecordById } from '@/services/firebase';
 import { generateNextNumber, peekNextNumber } from '@/services/runningNumberService';
 import fas from "./fas.png"; // Your company logo
 import html2canvas from "html2canvas";
@@ -767,12 +761,13 @@ export default function RGP() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this RGP permanently?")) return;
+  const handleDelete = async (id: string, rgpNumber: string) => {
+    if (!window.confirm(`Move Returnable Gate Pass "${rgpNumber}" to Recycle Bin?`)) return;
     try {
-      await deleteRecord("sales/rgp", id);
+      const user = JSON.parse(localStorage.getItem('erp_user') || '{}')
+      await softDeleteRecord("sales/rgp", id, user?.name || user?.username || 'unknown');
       setRGPs((prev) => prev.filter((d) => d.id !== id));
-      toast.success("Deleted");
+      toast.success("RGP moved to Recycle Bin");
     } catch {
       toast.error("Delete failed");
     }
@@ -891,9 +886,9 @@ export default function RGP() {
                                 <Button size="icon" variant="outline" onClick={() => handleEdit(rgp.id!)}>
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button size="icon" variant="outline" onClick={() => handleDelete(rgp.id!)}>
-                                  <Trash2 className="h-4 w-4 text-red-600" />
-                                </Button>
+                                 <Button size="icon" variant="outline" onClick={() => handleDelete(rgp.id!, rgp.rgpNumber)} title="Move to Recycle Bin">
+                                   <Trash2 className="h-4 w-4 text-orange-500" />
+                                 </Button>
                               </div>
                             </td>
                           </tr>

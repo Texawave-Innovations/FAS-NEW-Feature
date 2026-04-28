@@ -17,7 +17,7 @@ import { toast } from "sonner"
 import { format } from "date-fns"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
-import { getAllRecords, deleteRecord, updateRecord } from "@/services/firebase"
+import { getAllRecords, softDeleteRecord, updateRecord } from "@/services/firebase"
 import CreateInvoice from "./CreateInvoice"
 import fas from "./fas.png"
 import { Textarea } from "@/components/ui/textarea"
@@ -748,12 +748,13 @@ export default function InvoicesPage() {
     setFilteredInvoices(result)
   }, [selectedCustomerId, searchQuery, invoices, selectedDate])
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this invoice permanently?")) return
+  const handleDelete = async (id: string, invoiceNumber: string) => {
+    if (!confirm(`Move invoice "${invoiceNumber}" to Recycle Bin?`)) return
 
     try {
-      await deleteRecord("sales/invoices", id)
-      toast.success("Invoice deleted")
+      const user = JSON.parse(localStorage.getItem('erp_user') || '{}')
+      await softDeleteRecord("sales/invoices", id, user?.name || user?.username || 'unknown')
+      toast.success(`Invoice moved to Recycle Bin`)
       setInvoices((prev) => prev.filter((inv) => inv.id !== id))
       setFilteredInvoices((prev) => prev.filter((inv) => inv.id !== id))
     } catch (err) {
@@ -1062,6 +1063,14 @@ export default function InvoicesPage() {
                                   <Ban className="h-4 w-4 text-red-600" />
                                 </Button>
                               )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDelete(inv.id, inv.invoiceNumber)}
+                                title="Move to Recycle Bin"
+                              >
+                                <Trash2 className="h-4 w-4 text-orange-500" />
+                              </Button>
                             </TableCell>
                             {/* Status cell — already exists, keep it */}
                             <TableCell>
