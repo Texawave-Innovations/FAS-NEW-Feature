@@ -88,7 +88,6 @@ import SalesMaster from "./modules/master/SalesMaster";
 import HRMaster from "./modules/master/HRMaster";
 import QualityMaster from "./modules/master/QualityMaster";
 import ProductionMaster from "./modules/master/ProductionMaster";
-import MaterialMaster from "./modules/master/MaterialMaster";
 import StoresMaster from "./modules/master/StoresMaster";
 import FinanceMaster from "./modules/master/FinanceMaster";
 
@@ -549,7 +548,6 @@ function App() {
                 <Route path="hr" element={<HRMaster />} />
                 <Route path="quality" element={<QualityMaster />} />
                 <Route path="production" element={<ProductionMaster />} />
-                <Route path="material" element={<MaterialMaster />} />
                 <Route path="stores" element={<StoresMaster />} />
                 <Route path="finance" element={<FinanceMaster />} />
               </Route>

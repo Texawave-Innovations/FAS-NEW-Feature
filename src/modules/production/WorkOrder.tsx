@@ -706,7 +706,7 @@ export default function WorkOrder() {
                     {routeSeqRows.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
-                          No process types found — add them in Material Master → Process → Process Type Master
+                          No process types found — add them in Production Master → Process → Process Type Master
                         </TableCell>
                       </TableRow>
                     )}

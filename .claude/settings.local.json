@@ -5,7 +5,10 @@
       "Bash(vercel whoami *)",
       "Bash(vercel link *)",
       "Bash(vercel deploy *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(vercel --help)",
+      "Bash(vercel projects *)",
+      "Bash(vercel *)"
     ]
   }
 }

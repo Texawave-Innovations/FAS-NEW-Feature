@@ -1,15 +1,14 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { LiveClock } from '@/components/layout/LiveClock';
-import { ShoppingCart, Users, ClipboardCheck, Archive, Package, Wallet, Layers } from 'lucide-react';
+import { ShoppingCart, Users, ClipboardCheck, Package, Wallet, Layers } from 'lucide-react';
 
 export default function MasterLayout() {
   const masterMenuItems = [
     { path: '/master/sales', label: 'Sales Master', icon: ShoppingCart },
     { path: '/master/hr', label: 'HR Master', icon: Users },
     { path: '/master/quality', label: 'Quality Master', icon: ClipboardCheck },
-    { path: '/master/production', label: 'Production Master', icon: Archive },
-    { path: '/master/material', label: 'Material Master', icon: Layers },
+    { path: '/master/production', label: 'Production Master', icon: Layers },
     { path: '/master/stores', label: 'Stores Master', icon: Package },
     { path: '/master/finance', label: 'Finance Master', icon: Wallet },
   ];
