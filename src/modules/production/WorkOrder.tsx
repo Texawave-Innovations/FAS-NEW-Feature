@@ -42,6 +42,38 @@ interface RMItemRecord {
   gradeCode: string;
 }
 
+interface RouteRecord {
+  routeId: string;
+  routeName: string;
+}
+
+interface ProcessTypeRecord {
+  processTypeName: string;
+}
+
+interface ProcessMasterRecord {
+  processId: string;
+  processName: string;
+  processType: string;
+}
+
+interface ItemRouteRecord {
+  itemCode: string;
+  routeCode: string;
+  routeType: string;
+}
+
+interface RouteSeqRow {
+  processType: string;
+  processName: string;
+  productionMethod: string;
+  location: string;
+  processDueDate: string;
+}
+
+const PRODUCTION_METHODS = ['In-House Within Location', 'In-House Different Location', 'Outsourced'];
+const emptyRouteSeqHeader = { routeId: '', routeName: '', routeType: '' };
+
 interface WorkOrderRecord {
   workOrderType: string;
   poNo: string;
@@ -111,6 +143,15 @@ export default function WorkOrder() {
   const [lastWoKey,      setLastWoKey]      = useState('');
   const [editingKey,     setEditingKey]     = useState<string | null>(null);
 
+  // Route Sequence state
+  const [routes,          setRoutes]          = useState<RouteRecord[]>([]);
+  const [processTypes,    setProcessTypes]    = useState<ProcessTypeRecord[]>([]);
+  const [processMasters,  setProcessMasters]  = useState<ProcessMasterRecord[]>([]);
+  const [itemRoutes,      setItemRoutes]      = useState<ItemRouteRecord[]>([]);
+  const [showRouteSeq,    setShowRouteSeq]    = useState(false);
+  const [routeSeqHeader,  setRouteSeqHeader]  = useState(emptyRouteSeqHeader);
+  const [routeSeqRows,    setRouteSeqRows]    = useState<RouteSeqRow[]>([]);
+
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
@@ -120,6 +161,21 @@ export default function WorkOrder() {
       get(ref(database, 'production/workOrders')),
       get(ref(database, 'masters/sales/warehouses')),
     ]);
+    // Load route/process masters separately
+    const [routeSnap, ptSnap, pmSnap, irSnap] = await Promise.all([
+      get(ref(database, 'masters/material/routes')),
+      get(ref(database, 'masters/material/processTypes')),
+      get(ref(database, 'masters/material/processes')),
+      get(ref(database, 'masters/material/itemRoutes')),
+    ]);
+    if (routeSnap.exists())
+      setRoutes(Object.values(routeSnap.val() as Record<string, RouteRecord>));
+    if (ptSnap.exists())
+      setProcessTypes(Object.values(ptSnap.val() as Record<string, ProcessTypeRecord>));
+    if (pmSnap.exists())
+      setProcessMasters(Object.values(pmSnap.val() as Record<string, ProcessMasterRecord>));
+    if (irSnap.exists())
+      setItemRoutes(Object.values(irSnap.val() as Record<string, ItemRouteRecord>));
 
     if (soSnap.exists()) {
       const all = soSnap.val() as Record<string, SORecord>;
@@ -257,7 +313,45 @@ export default function WorkOrder() {
     await update(ref(database, `production/workOrders/${lastWoKey}`), {
       detail: { ...detailForm, qtyPerTube },
     });
-    toast({ title: 'Production details saved — Route Sequence coming soon' });
+    // Initialise rows from all process types
+    setRouteSeqRows(
+      processTypes.map(pt => ({
+        processType: pt.processTypeName,
+        processName: '',
+        productionMethod: '',
+        location: '',
+        processDueDate: '',
+      }))
+    );
+    setRouteSeqHeader(emptyRouteSeqHeader);
+    setShowRouteSeq(true);
+  };
+
+  const handleRouteIdChange = (routeId: string) => {
+    const route = routes.find(r => r.routeId === routeId);
+    const fgItem = workOrders[lastWoKey]?.fgItem || '';
+    const ir = itemRoutes.find(r => r.routeCode === routeId && r.itemCode === fgItem);
+    setRouteSeqHeader({
+      routeId,
+      routeName: route?.routeName || '',
+      routeType: ir?.routeType || '',
+    });
+  };
+
+  const updateRouteSeqRow = (idx: number, field: keyof RouteSeqRow, value: string) => {
+    setRouteSeqRows(rows => rows.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+  };
+
+  const handleSaveRouteSeq = async () => {
+    if (!routeSeqHeader.routeId) {
+      toast({ title: 'Please select a Route ID', variant: 'destructive' });
+      return;
+    }
+    await update(ref(database, `production/workOrders/${lastWoKey}`), {
+      routeSequence: { header: routeSeqHeader, rows: routeSeqRows },
+    });
+    toast({ title: 'Route Sequence saved' });
+    setShowRouteSeq(false);
   };
 
   const handleEdit = (key: string, wo: WorkOrderRecord) => {
@@ -538,6 +632,153 @@ export default function WorkOrder() {
                 className="bg-slate-700 hover:bg-slate-800 text-white px-6">
                 Route Sequence
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Route Sequence Section ──────────────────────────────────────────── */}
+      {showRouteSeq && (
+        <Card>
+          <CardContent className="pt-6 space-y-5">
+
+            {/* Header row: Route ID | Route Name | Route Type (dropdown) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+              <div className="space-y-1">
+                <Label>Route ID <span className="text-red-500">*</span></Label>
+                <Select value={routeSeqHeader.routeId} onValueChange={handleRouteIdChange}>
+                  <SelectTrigger><SelectValue placeholder="-- SELECT --" /></SelectTrigger>
+                  <SelectContent>
+                    {routes.length === 0 && (
+                      <SelectItem value="_none" disabled>No routes in Route Master</SelectItem>
+                    )}
+                    {routes.map(r => (
+                      <SelectItem key={r.routeId} value={r.routeId}>{r.routeId}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Route Name</Label>
+                <Input readOnly value={routeSeqHeader.routeName}
+                  className="bg-muted text-muted-foreground" placeholder="Auto-filled from Route ID" />
+              </div>
+              <div className="space-y-1">
+                <Label>Route Type <span className="text-red-500">*</span></Label>
+                <Select value={routeSeqHeader.routeType}
+                  onValueChange={(v) => {
+                    setRouteSeqHeader(h => ({ ...h, routeType: v }));
+                    // Build process rows when both Route ID and Route Type are set
+                    if (routeSeqHeader.routeId) {
+                      setRouteSeqRows(processTypes.map(pt => ({
+                        processType: pt.processTypeName,
+                        processName: '',
+                        productionMethod: '',
+                        location: '',
+                        processDueDate: '',
+                      })));
+                    }
+                  }}>
+                  <SelectTrigger><SelectValue placeholder="-- SELECT --" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Primary">Primary</SelectItem>
+                    <SelectItem value="Alternate">Alternate</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Process table — shown only after both Route ID and Route Type selected */}
+            {routeSeqHeader.routeId && routeSeqHeader.routeType && (
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/60">
+                      <TableHead className="w-12">S.No</TableHead>
+                      <TableHead>Process Type</TableHead>
+                      <TableHead>Process Name</TableHead>
+                      <TableHead>Production Method</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Process Due Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {routeSeqRows.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
+                          No process types found — add them in Material Master → Process → Process Type Master
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {routeSeqRows.map((row, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{idx + 1}</TableCell>
+                        <TableCell className="font-medium">{row.processType}</TableCell>
+
+                        {/* Process Name — filtered by process type */}
+                        <TableCell>
+                          <Select value={row.processName}
+                            onValueChange={(v) => updateRouteSeqRow(idx, 'processName', v)}>
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {processMasters.filter(p => p.processType === row.processType).map(p => (
+                                <SelectItem key={p.processId} value={p.processName}>{p.processName}</SelectItem>
+                              ))}
+                              {processMasters.filter(p => p.processType === row.processType).length === 0 && (
+                                <SelectItem value="_none" disabled>No processes for this type</SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+
+                        {/* Production Method */}
+                        <TableCell>
+                          <Select value={row.productionMethod}
+                            onValueChange={(v) => updateRouteSeqRow(idx, 'productionMethod', v)}>
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {PRODUCTION_METHODS.map(m => (
+                                <SelectItem key={m} value={m}>{m}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+
+                        {/* Location */}
+                        <TableCell>
+                          <Input className="h-8 text-sm" placeholder="Enter location"
+                            value={row.location}
+                            onChange={(e) => updateRouteSeqRow(idx, 'location', e.target.value)} />
+                        </TableCell>
+
+                        {/* Process Due Date */}
+                        <TableCell>
+                          <Input type="date" className="h-8 text-sm"
+                            value={row.processDueDate}
+                            onChange={(e) => updateRouteSeqRow(idx, 'processDueDate', e.target.value)} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            {/* Save / Clear / Cancel */}
+            <div className="flex gap-3 justify-end pt-2">
+              <Button onClick={handleSaveRouteSeq}
+                className="bg-green-600 hover:bg-green-700 text-white px-6">Save</Button>
+              <Button onClick={() => {
+                  setRouteSeqHeader(emptyRouteSeqHeader);
+                  setRouteSeqRows([]);
+                }}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-6">Clear</Button>
+              <Button onClick={() => { setShowRouteSeq(false); setRouteSeqHeader(emptyRouteSeqHeader); setRouteSeqRows([]); }}
+                className="bg-red-500 hover:bg-red-600 text-white px-6">Cancel</Button>
             </div>
           </CardContent>
         </Card>

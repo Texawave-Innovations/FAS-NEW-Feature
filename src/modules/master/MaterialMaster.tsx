@@ -31,6 +31,16 @@ interface MachineRecord {
   machineGroupName: string;
 }
 
+interface RouteRecord {
+  routeId: string;
+  routeName: string;
+}
+
+interface ProcessTypeRecord {
+  processTypeCode: string;
+  processTypeName: string;
+}
+
 interface ProcessRecord {
   processId: string;
   processName: string;
@@ -48,6 +58,19 @@ interface MaterialSpecRecord {
 
 const emptyDieForm: DieRecord = { dieCode: '', dieDescription: '', dieType: '' };
 const emptyMachineForm: MachineRecord = { machineGroupCode: '', machineGroupName: '' };
+interface ItemRouteRecord {
+  itemCode: string;
+  itemName: string;
+  routeCode: string;
+  routeName: string;
+  routeType: string;
+}
+
+const emptyRouteForm: RouteRecord = { routeId: '', routeName: '' };
+const emptyItemRouteForm: ItemRouteRecord = {
+  itemCode: '', itemName: '', routeCode: '', routeName: '', routeType: '',
+};
+const emptyProcessTypeForm: ProcessTypeRecord = { processTypeCode: '', processTypeName: '' };
 const emptyProcessForm: ProcessRecord = { processId: '', processName: '', processType: '' };
 const emptyMaterialSpecForm: MaterialSpecRecord = {
   materialSpecNo: '', itemCode: '', itemName: '', customerGroup: '', documentUrl: '', documentName: '',
@@ -153,6 +176,25 @@ export default function MaterialMaster() {
   const [showMachineForm, setShowMachineForm] = useState(false);
   const [editingMachineKey, setEditingMachineKey] = useState<string | null>(null);
 
+  // Route state
+  const [routes, setRoutes] = useState<Record<string, RouteRecord>>({});
+  const [routeForm, setRouteForm] = useState<RouteRecord>(emptyRouteForm);
+  const [showRouteForm, setShowRouteForm] = useState(false);
+  const [editingRouteKey, setEditingRouteKey] = useState<string | null>(null);
+
+  // Item-Route state
+  const [itemRoutes, setItemRoutes] = useState<Record<string, ItemRouteRecord>>({});
+  const [itemRouteForm, setItemRouteForm] = useState<ItemRouteRecord>(emptyItemRouteForm);
+  const [showItemRouteForm, setShowItemRouteForm] = useState(false);
+  const [editingItemRouteKey, setEditingItemRouteKey] = useState<string | null>(null);
+
+  // Process Type state
+  const [processTypes, setProcessTypes] = useState<Record<string, ProcessTypeRecord>>({});
+  const [processTypeForm, setProcessTypeForm] = useState<ProcessTypeRecord>(emptyProcessTypeForm);
+  const [showProcessTypeForm, setShowProcessTypeForm] = useState(false);
+  const [editingProcessTypeKey, setEditingProcessTypeKey] = useState<string | null>(null);
+  const [processSubTab, setProcessSubTab] = useState<'type' | 'master'>('type');
+
   // Process state
   const [processes, setProcesses] = useState<Record<string, ProcessRecord>>({});
   const [processForm, setProcessForm] = useState<ProcessRecord>(emptyProcessForm);
@@ -195,6 +237,9 @@ export default function MaterialMaster() {
       setItems(data.items || {});
       setDies(data.dies || {});
       setMachines(data.machines || {});
+      setRoutes(data.routes || {});
+      setItemRoutes(data.itemRoutes || {});
+      setProcessTypes(data.processTypes || {});
       setProcesses(data.processes || {});
       setMaterialSpecs(data.materialSpecs || {});
     }
@@ -373,6 +418,109 @@ export default function MaterialMaster() {
     setMachines(updated);
     await set(ref(database, 'masters/material/machines'), updated);
     toast({ title: 'Machine deleted' });
+  };
+
+  // ── Item-Route handlers ───────────────────────────────────────────────────────
+
+  const handleItemRouteCodeChange = (routeId: string) => {
+    const route = Object.values(routes).find((r) => r.routeId === routeId);
+    setItemRouteForm((f) => ({ ...f, routeCode: routeId, routeName: route?.routeName || '' }));
+  };
+
+  const handleItemRouteItemChange = (fgCode: string) => {
+    const fg = Object.values(items).find((i) => i.itemType === 'FG' && i.fgItemCode === fgCode);
+    setItemRouteForm((f) => ({ ...f, itemCode: fgCode, itemName: fg?.fgDescription || '' }));
+  };
+
+  const saveItemRoute = async () => {
+    if (!itemRouteForm.itemCode || !itemRouteForm.routeCode || !itemRouteForm.routeType) {
+      toast({ title: 'Item Code, Route Code and Route Type are required', variant: 'destructive' });
+      return;
+    }
+    const id = editingItemRouteKey ?? nextKey(itemRoutes, 'IR');
+    const updated = { ...itemRoutes, [id]: itemRouteForm };
+    setItemRoutes(updated);
+    await set(ref(database, 'masters/material/itemRoutes'), updated);
+    setItemRouteForm(emptyItemRouteForm);
+    setShowItemRouteForm(false);
+    setEditingItemRouteKey(null);
+    toast({ title: editingItemRouteKey ? 'Item-Route updated' : 'Item-Route saved' });
+  };
+
+  const editItemRoute = (key: string, ir: ItemRouteRecord) => {
+    setItemRouteForm({ ...ir });
+    setEditingItemRouteKey(key);
+    setShowItemRouteForm(true);
+  };
+
+  const deleteItemRoute = async (key: string) => {
+    const updated = { ...itemRoutes };
+    delete updated[key];
+    setItemRoutes(updated);
+    await set(ref(database, 'masters/material/itemRoutes'), updated);
+    toast({ title: 'Item-Route deleted' });
+  };
+
+  // ── Route handlers ────────────────────────────────────────────────────────────
+
+  const saveRoute = async () => {
+    if (!routeForm.routeId.trim() || !routeForm.routeName.trim()) {
+      toast({ title: 'Route ID and Route Name are required', variant: 'destructive' });
+      return;
+    }
+    const id = editingRouteKey ?? nextKey(routes, 'RTE');
+    const updated = { ...routes, [id]: routeForm };
+    setRoutes(updated);
+    await set(ref(database, 'masters/material/routes'), updated);
+    setRouteForm(emptyRouteForm);
+    setShowRouteForm(false);
+    setEditingRouteKey(null);
+    toast({ title: editingRouteKey ? 'Route updated' : 'Route saved' });
+  };
+
+  const editRoute = (key: string, route: RouteRecord) => {
+    setRouteForm({ ...route });
+    setEditingRouteKey(key);
+    setShowRouteForm(true);
+  };
+
+  const deleteRoute = async (key: string) => {
+    const updated = { ...routes };
+    delete updated[key];
+    setRoutes(updated);
+    await set(ref(database, 'masters/material/routes'), updated);
+    toast({ title: 'Route deleted' });
+  };
+
+  // ── Process Type handlers ─────────────────────────────────────────────────────
+
+  const saveProcessType = async () => {
+    if (!processTypeForm.processTypeCode.trim() || !processTypeForm.processTypeName.trim()) {
+      toast({ title: 'Please fill all Process Type fields', variant: 'destructive' });
+      return;
+    }
+    const id = editingProcessTypeKey ?? nextKey(processTypes, 'PTYPE');
+    const updated = { ...processTypes, [id]: processTypeForm };
+    setProcessTypes(updated);
+    await set(ref(database, 'masters/material/processTypes'), updated);
+    setProcessTypeForm(emptyProcessTypeForm);
+    setShowProcessTypeForm(false);
+    setEditingProcessTypeKey(null);
+    toast({ title: editingProcessTypeKey ? 'Process Type updated' : 'Process Type saved' });
+  };
+
+  const editProcessType = (key: string, pt: ProcessTypeRecord) => {
+    setProcessTypeForm({ ...pt });
+    setEditingProcessTypeKey(key);
+    setShowProcessTypeForm(true);
+  };
+
+  const deleteProcessType = async (key: string) => {
+    const updated = { ...processTypes };
+    delete updated[key];
+    setProcessTypes(updated);
+    await set(ref(database, 'masters/material/processTypes'), updated);
+    toast({ title: 'Process Type deleted' });
   };
 
   // ── Process handlers ──────────────────────────────────────────────────────────
@@ -759,43 +907,234 @@ export default function MaterialMaster() {
       )}
 
       {activeTab === 'process' && (
+        <div className="space-y-4">
+          {/* Process sub-nav */}
+          <div className="flex gap-1 border-b border-border">
+            {(['type', 'master'] as const).map((sub) => (
+              <button key={sub} onClick={() => setProcessSubTab(sub)}
+                className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  processSubTab === sub
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                }`}>
+                {sub === 'type' ? 'Process Type Master' : 'Process Master'}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Process Type Master ── */}
+          {processSubTab === 'type' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center justify-between">
+                  Process Type Master
+                  <Button size="sm" onClick={() => { setShowProcessTypeForm(true); setProcessTypeForm(emptyProcessTypeForm); setEditingProcessTypeKey(null); }}
+                    className="bg-primary">
+                    <Plus className="h-4 w-4 mr-1" /> Add
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {showProcessTypeForm && (
+                  <div className="mb-6 p-4 border border-border rounded-lg bg-muted/30 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Label>Process Type Code <span className="text-red-500">*</span></Label>
+                        <Input placeholder="Enter process type code" value={processTypeForm.processTypeCode}
+                          onChange={(e) => setProcessTypeForm({ ...processTypeForm, processTypeCode: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Process Type Name <span className="text-red-500">*</span></Label>
+                        <Input placeholder="Enter process type name" value={processTypeForm.processTypeName}
+                          onChange={(e) => setProcessTypeForm({ ...processTypeForm, processTypeName: e.target.value })} />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={saveProcessType} className="bg-green-600 hover:bg-green-700 text-white">
+                        {editingProcessTypeKey ? 'Update' : 'Save'}
+                      </Button>
+                      <Button onClick={() => setProcessTypeForm(emptyProcessTypeForm)}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white">Clear</Button>
+                      <Button onClick={() => { setShowProcessTypeForm(false); setProcessTypeForm(emptyProcessTypeForm); setEditingProcessTypeKey(null); }}
+                        className="bg-red-500 hover:bg-red-600 text-white">Cancel</Button>
+                    </div>
+                  </div>
+                )}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">S.No</TableHead>
+                      <TableHead>Process Type Code</TableHead>
+                      <TableHead>Process Type Name</TableHead>
+                      <TableHead className="w-28">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Object.entries(processTypes).map(([id, pt], idx) => (
+                      <TableRow key={id}>
+                        <TableCell>{idx + 1}</TableCell>
+                        <TableCell className="font-medium">{pt.processTypeCode}</TableCell>
+                        <TableCell>{pt.processTypeName}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <button onClick={() => editProcessType(id, pt)}
+                              className="p-1.5 rounded bg-sky-400 hover:bg-sky-500 text-white">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => deleteProcessType(id)}
+                              className="p-1.5 rounded bg-sky-400 hover:bg-sky-500 text-white">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {Object.keys(processTypes).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                          No process types added yet
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── Process Master ── */}
+          {processSubTab === 'master' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center justify-between">
+                  Process Master
+                  <Button size="sm" onClick={() => { setShowProcessForm(true); setProcessForm(emptyProcessForm); setEditingProcessKey(null); }}
+                    className="bg-primary">
+                    <Plus className="h-4 w-4 mr-1" /> Add
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {showProcessForm && (
+                  <div className="mb-6 p-4 border border-border rounded-lg bg-muted/30 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <Label>Process ID <span className="text-red-500">*</span></Label>
+                        <Input placeholder="Enter process ID" value={processForm.processId}
+                          onChange={(e) => setProcessForm({ ...processForm, processId: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Process Name <span className="text-red-500">*</span></Label>
+                        <Input placeholder="Enter process name" value={processForm.processName}
+                          onChange={(e) => setProcessForm({ ...processForm, processName: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Process Type <span className="text-red-500">*</span></Label>
+                        <Select value={processForm.processType}
+                          onValueChange={(v) => setProcessForm({ ...processForm, processType: v })}>
+                          <SelectTrigger><SelectValue placeholder="-- SELECT --" /></SelectTrigger>
+                          <SelectContent>
+                            {Object.values(processTypes).length === 0 && (
+                              <SelectItem value="_none" disabled>Add types in Process Type Master first</SelectItem>
+                            )}
+                            {Object.values(processTypes).map((pt) => (
+                              <SelectItem key={pt.processTypeCode} value={pt.processTypeName}>
+                                {pt.processTypeName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={saveProcess} className="bg-green-600 hover:bg-green-700 text-white">
+                        {editingProcessKey ? 'Update' : 'Save'}
+                      </Button>
+                      <Button onClick={() => setProcessForm(emptyProcessForm)}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white">Clear</Button>
+                      <Button onClick={() => { setShowProcessForm(false); setProcessForm(emptyProcessForm); setEditingProcessKey(null); }}
+                        className="bg-red-500 hover:bg-red-600 text-white">Cancel</Button>
+                    </div>
+                  </div>
+                )}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">S.No</TableHead>
+                      <TableHead>Process ID</TableHead>
+                      <TableHead>Process Name</TableHead>
+                      <TableHead>Process Type</TableHead>
+                      <TableHead className="w-28">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Object.entries(processes).map(([id, process], idx) => (
+                      <TableRow key={id}>
+                        <TableCell>{idx + 1}</TableCell>
+                        <TableCell className="font-medium">{process.processId}</TableCell>
+                        <TableCell>{process.processName}</TableCell>
+                        <TableCell>{process.processType}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <button onClick={() => editProcess(id, process)}
+                              className="p-1.5 rounded bg-sky-400 hover:bg-sky-500 text-white">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => deleteProcess(id)}
+                              className="p-1.5 rounded bg-sky-400 hover:bg-sky-500 text-white">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {Object.keys(processes).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
+                          No processes added yet
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+      {activeTab === 'route' && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center justify-between">
-              Process Master
-              <Button size="sm" onClick={() => { setShowProcessForm(true); setProcessForm(emptyProcessForm); setEditingProcessKey(null); }}
+              Route Master
+              <Button size="sm" onClick={() => { setShowRouteForm(true); setRouteForm(emptyRouteForm); setEditingRouteKey(null); }}
                 className="bg-primary">
                 <Plus className="h-4 w-4 mr-1" /> Add
               </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {showProcessForm && (
+            {showRouteForm && (
               <div className="mb-6 p-4 border border-border rounded-lg bg-muted/30 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <Label>Process ID <span className="text-red-500">*</span></Label>
-                    <Input placeholder="Enter process ID" value={processForm.processId}
-                      onChange={(e) => setProcessForm({ ...processForm, processId: e.target.value })} />
+                    <Label>Route ID <span className="text-red-500">*</span></Label>
+                    <Input placeholder="Enter route ID" value={routeForm.routeId}
+                      onChange={(e) => setRouteForm({ ...routeForm, routeId: e.target.value })} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Process Name <span className="text-red-500">*</span></Label>
-                    <Input placeholder="Enter process name" value={processForm.processName}
-                      onChange={(e) => setProcessForm({ ...processForm, processName: e.target.value })} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Process Type <span className="text-red-500">*</span></Label>
-                    <Input placeholder="Enter process type" value={processForm.processType}
-                      onChange={(e) => setProcessForm({ ...processForm, processType: e.target.value })} />
+                    <Label>Route Name <span className="text-red-500">*</span></Label>
+                    <Input placeholder="Enter route name" value={routeForm.routeName}
+                      onChange={(e) => setRouteForm({ ...routeForm, routeName: e.target.value })} />
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={saveProcess} className="bg-green-600 hover:bg-green-700 text-white">
-                    {editingProcessKey ? 'Update' : 'Save'}
+                  <Button onClick={saveRoute} className="bg-green-600 hover:bg-green-700 text-white">
+                    {editingRouteKey ? 'Update' : 'Save'}
                   </Button>
-                  <Button onClick={() => setProcessForm(emptyProcessForm)}
+                  <Button onClick={() => setRouteForm(emptyRouteForm)}
                     className="bg-yellow-500 hover:bg-yellow-600 text-white">Clear</Button>
-                  <Button onClick={() => { setShowProcessForm(false); setProcessForm(emptyProcessForm); setEditingProcessKey(null); }}
+                  <Button onClick={() => { setShowRouteForm(false); setRouteForm(emptyRouteForm); setEditingRouteKey(null); }}
                     className="bg-red-500 hover:bg-red-600 text-white">Cancel</Button>
                 </div>
               </div>
@@ -804,26 +1143,26 @@ export default function MaterialMaster() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-16">S.No</TableHead>
-                  <TableHead>Process ID</TableHead>
-                  <TableHead>Process Name</TableHead>
-                  <TableHead>Process Type</TableHead>
+                  <TableHead>Route ID</TableHead>
+                  <TableHead>Route Name</TableHead>
+                  <TableHead>Total Process</TableHead>
                   <TableHead className="w-28">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Object.entries(processes).map(([id, process], idx) => (
+                {Object.entries(routes).map(([id, route], idx) => (
                   <TableRow key={id}>
                     <TableCell>{idx + 1}</TableCell>
-                    <TableCell className="font-medium">{process.processId}</TableCell>
-                    <TableCell>{process.processName}</TableCell>
-                    <TableCell>{process.processType}</TableCell>
+                    <TableCell className="font-medium">{route.routeId}</TableCell>
+                    <TableCell>{route.routeName}</TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <button onClick={() => editProcess(id, process)}
+                        <button onClick={() => editRoute(id, route)}
                           className="p-1.5 rounded bg-sky-400 hover:bg-sky-500 text-white">
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => deleteProcess(id)}
+                        <button onClick={() => deleteRoute(id)}
                           className="p-1.5 rounded bg-sky-400 hover:bg-sky-500 text-white">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -831,10 +1170,10 @@ export default function MaterialMaster() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {Object.keys(processes).length === 0 && (
+                {Object.keys(routes).length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
-                      No processes added yet
+                      No routes added yet
                     </TableCell>
                   </TableRow>
                 )}
@@ -843,8 +1182,147 @@ export default function MaterialMaster() {
           </CardContent>
         </Card>
       )}
-      {activeTab === 'route'        && <ComingSoon label="Route" />}
-      {activeTab === 'itemRoute'    && <ComingSoon label="Item-Route" />}
+      {activeTab === 'itemRoute' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center justify-between">
+              Item-Route Master
+              <Button size="sm" onClick={() => { setShowItemRouteForm(true); setItemRouteForm(emptyItemRouteForm); setEditingItemRouteKey(null); }}
+                className="bg-primary">
+                <Plus className="h-4 w-4 mr-1" /> Add
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {showItemRouteForm && (
+              <div className="mb-6 p-4 border border-border rounded-lg bg-muted/30 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+
+                  {/* Item Code */}
+                  <div className="space-y-1">
+                    <Label>Item Code <span className="text-red-500">*</span></Label>
+                    <Select value={itemRouteForm.itemCode} onValueChange={handleItemRouteItemChange}>
+                      <SelectTrigger><SelectValue placeholder="-- SELECT --" /></SelectTrigger>
+                      <SelectContent>
+                        {Object.values(items).filter(i => i.itemType === 'FG').length === 0 && (
+                          <SelectItem value="_none" disabled>No FG items in Item Master</SelectItem>
+                        )}
+                        {Object.values(items).filter(i => i.itemType === 'FG').map(i => (
+                          <SelectItem key={i.fgItemCode} value={i.fgItemCode}>{i.fgItemCode}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Item Name — auto-filled */}
+                  <div className="space-y-1">
+                    <Label>Item Name</Label>
+                    <Input readOnly value={itemRouteForm.itemName}
+                      className="bg-muted text-muted-foreground" placeholder="Auto-filled from Item Code" />
+                  </div>
+
+                  {/* Route Type */}
+                  <div className="space-y-1">
+                    <Label>Route Type <span className="text-red-500">*</span></Label>
+                    <Select value={itemRouteForm.routeType}
+                      onValueChange={(v) => setItemRouteForm(f => ({ ...f, routeType: v }))}>
+                      <SelectTrigger><SelectValue placeholder="-- SELECT --" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Primary">Primary</SelectItem>
+                        <SelectItem value="Alternate">Alternate</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Route Code */}
+                  <div className="space-y-1">
+                    <Label>Route Code <span className="text-red-500">*</span></Label>
+                    <Select value={itemRouteForm.routeCode} onValueChange={handleItemRouteCodeChange}>
+                      <SelectTrigger><SelectValue placeholder="-- SELECT --" /></SelectTrigger>
+                      <SelectContent>
+                        {Object.values(routes).length === 0 && (
+                          <SelectItem value="_none" disabled>No routes in Route Master</SelectItem>
+                        )}
+                        {Object.values(routes).map(r => (
+                          <SelectItem key={r.routeId} value={r.routeId}>{r.routeId}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Route Name — auto-filled */}
+                  <div className="space-y-1">
+                    <Label>Route Name</Label>
+                    <Input readOnly value={itemRouteForm.routeName}
+                      className="bg-muted text-muted-foreground" placeholder="Auto-filled from Route Code" />
+                  </div>
+
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={saveItemRoute} className="bg-green-600 hover:bg-green-700 text-white">
+                    {editingItemRouteKey ? 'Update' : 'Save'}
+                  </Button>
+                  <Button onClick={() => setItemRouteForm(emptyItemRouteForm)}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white">Clear</Button>
+                  <Button onClick={() => { setShowItemRouteForm(false); setItemRouteForm(emptyItemRouteForm); setEditingItemRouteKey(null); }}
+                    className="bg-red-500 hover:bg-red-600 text-white">Cancel</Button>
+                </div>
+              </div>
+            )}
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">S.No</TableHead>
+                  <TableHead>Item Code</TableHead>
+                  <TableHead>Item Name</TableHead>
+                  <TableHead>Route Code</TableHead>
+                  <TableHead>Route Name</TableHead>
+                  <TableHead>Route Type</TableHead>
+                  <TableHead className="w-28">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Object.entries(itemRoutes).map(([id, ir], idx) => (
+                  <TableRow key={id}>
+                    <TableCell>{idx + 1}</TableCell>
+                    <TableCell className="font-medium">{ir.itemCode}</TableCell>
+                    <TableCell>{ir.itemName}</TableCell>
+                    <TableCell>{ir.routeCode}</TableCell>
+                    <TableCell>{ir.routeName}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                        ir.routeType === 'Primary'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}>{ir.routeType}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <button onClick={() => editItemRoute(id, ir)}
+                          className="p-1.5 rounded bg-sky-400 hover:bg-sky-500 text-white">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => deleteItemRoute(id)}
+                          className="p-1.5 rounded bg-sky-400 hover:bg-sky-500 text-white">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {Object.keys(itemRoutes).length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                      No item routes added yet
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
       {activeTab === 'materialSpec' && (
         <Card>
           <CardHeader>
