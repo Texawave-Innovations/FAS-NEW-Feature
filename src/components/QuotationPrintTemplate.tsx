@@ -694,6 +694,9 @@ export default function QuotationPrintTemplate({
                         fontSize: "16px",
                         fontWeight: "900",
                         margin: "0 0 5px 0",
+                        display: "flex",           // Align items in a row
+                        alignItems: "center",      // Vertical center
+                        justifyContent: "center",  // Horizontal center
                       }}
                     >
                       SALES QUOTATION
@@ -704,8 +707,16 @@ export default function QuotationPrintTemplate({
                             fontSize: "10px",
                             background: "#dc2626",
                             color: "#fff",
-                            padding: "2px 8px",
-                            borderRadius: "4px",
+                            borderRadius: "8px",
+
+                            // --- CRITICAL FIXES ---
+                            display: "inline-flex",   // Allows internal centering
+                            alignItems: "center",    // Centers text vertically
+                            justifyContent: "center", // Centers text horizontally
+                            height: "20px",          // Fixed height to contain the text
+                            padding: "0 8px",        // Horizontal padding only
+                            lineHeight: "20px",         // Resets the inherited height from h2
+                            // ----------------------
                           }}
                         >
                           CASH SALE
@@ -870,9 +881,9 @@ export default function QuotationPrintTemplate({
                                 ],
                                 ...(!isWalkIn
                                   ? [
-                                      ["Your Ref:", q.yourRef || "—", null],
-                                      ["Our Ref:", q.ourRef || "—", null],
-                                    ]
+                                    ["Your Ref:", q.yourRef || "—", null],
+                                    ["Our Ref:", q.ourRef || "—", null],
+                                  ]
                                   : []),
                                 ["Mode of Despatch:", q.modeOfDispatch, null],
                                 ["Delivery Term:", q.deliveryTerm, null],
@@ -1057,7 +1068,7 @@ export default function QuotationPrintTemplate({
                           >
                             {fmt(
                               Number(item.qty || 0) *
-                                Number(item.unitRate || 0),
+                              Number(item.unitRate || 0),
                             )}
                           </td>
                           <td

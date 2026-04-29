@@ -89,7 +89,50 @@ export const batchUpdate = async (path: string, updates: Array<{ id: string; upd
   await update(ref(database), updatesObj);
 };
 // ---------------------------------------------------------------------------
-// DELETE RECORD
+// SOFT DELETE RECORD  (sets is_deleted=true; record stays in DB)
+// ---------------------------------------------------------------------------
+export const softDeleteRecord = async (
+  path: string,
+  id: string,
+  deletedBy: string = 'system'
+) => {
+  const recordRef = ref(database, `${path}/${id}`);
+  await update(recordRef, sanitize({
+    is_deleted: true,
+    deleted_at: Date.now(),
+    deleted_by: deletedBy,
+    updatedAt: Date.now(),
+  }));
+};
+
+// ---------------------------------------------------------------------------
+// RESTORE RECORD  (clears soft-delete flags)
+// ---------------------------------------------------------------------------
+export const restoreRecord = async (path: string, id: string) => {
+  const recordRef = ref(database, `${path}/${id}`);
+  await update(recordRef, {
+    is_deleted: false,
+    deleted_at: null,
+    deleted_by: null,
+    updatedAt: Date.now(),
+  });
+};
+
+// ---------------------------------------------------------------------------
+// GET DELETED RECORDS  (only those with is_deleted === true)
+// ---------------------------------------------------------------------------
+export const getDeletedRecords = async (path: string) => {
+  const listRef = ref(database, path);
+  const snapshot = await get(listRef);
+  if (!snapshot.exists()) return [];
+  const data = snapshot.val();
+  return Object.keys(data)
+    .map((key) => ({ ...data[key], id: key }))
+    .filter((r: any) => r.is_deleted === true);
+};
+
+// ---------------------------------------------------------------------------
+// DELETE RECORD  (permanent / hard delete)
 // ---------------------------------------------------------------------------
 export const deleteRecord = async (path: string, id: string) => {
   const recordRef = ref(database, `${path}/${id}`);
@@ -110,16 +153,18 @@ export const getRecordById = async (path: string, id: string) => {
 export const getRecord = getRecordById;
 
 // ---------------------------------------------------------------------------
-// GET ALL RECORDS
+// GET ALL RECORDS  (excludes soft-deleted records by default)
 // ---------------------------------------------------------------------------
-export const getAllRecords = async (path: string) => {
+export const getAllRecords = async (path: string, includeDeleted = false) => {
   const listRef = ref(database, path);
   const snapshot = await get(listRef);
 
   if (!snapshot.exists()) return [];
 
   const data = snapshot.val();
-  return Object.keys(data).map((key) => ({ ...data[key], id: key }));
+  const all = Object.keys(data).map((key) => ({ ...data[key], id: key }));
+  if (includeDeleted) return all;
+  return all.filter((r: any) => !r.is_deleted);
 };
 
 // ---------------------------------------------------------------------------

@@ -21,6 +21,7 @@ import Dashboard from "./pages/Dashboard";
 import StubPage from "./pages/StubPage";
 import SettingsPage from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import RecycleBin from "./pages/RecycleBin";
 
 // Services
 import { getAllRecords } from "@/services/firebase";
@@ -561,6 +562,15 @@ function App() {
                 element={
                   <ProtectedRoute module="settings">
                     <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/recycle-bin"
+                element={
+                  <ProtectedRoute module="settings">
+                    <RecycleBin />
                   </ProtectedRoute>
                 }
               />
