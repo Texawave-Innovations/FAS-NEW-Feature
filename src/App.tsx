@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 // Context & Routes
 
 import { AuthProvider } from "@/context/AuthContext";
+import { NotificationProvider } from "@/context/NotificationContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoginRoute } from "@/components/LoginRoute";
 
@@ -22,6 +23,7 @@ import StubPage from "./pages/StubPage";
 import SettingsPage from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import RecycleBin from "./pages/RecycleBin";
+import Reminders from "./pages/Reminders";
 
 // Services
 import { getAllRecords } from "@/services/firebase";
@@ -385,6 +387,7 @@ function App() {
         <Toaster />
         <Sonner />
         <AuthProvider>
+          <NotificationProvider>
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Navigate to="/login" replace />} />
@@ -575,12 +578,23 @@ function App() {
                 }
               />
 
+              {/* REMINDERS */}
+              <Route
+                path="/reminders"
+                element={
+                  <ProtectedRoute module="reminders">
+                    <Reminders />
+                  </ProtectedRoute>
+                }
+              />
+
               <Route path="*" element={<NotFound />} />
             </Routes>
 
             {/* Global Chat Widget */}
             {/* <ChatWidget /> */}
           </BrowserRouter>
+          </NotificationProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

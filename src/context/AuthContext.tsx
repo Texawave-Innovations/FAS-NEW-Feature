@@ -23,13 +23,13 @@ const USERS: Record<string, { password: string; role: UserRole; name: string }> 
 
 // Default role-based access control (fallback if no custom config saved)
 const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
-  admin:      ['dashboard', 'sales', 'hr', 'quality', 'production', 'master', 'settings', 'reports'],
-  sales:      ['dashboard', 'sales'],
-  hr:         ['dashboard', 'hr'],
-  accountant: ['dashboard', 'finance'],
-  manager:    ['dashboard', 'production', 'quality'],
-  quality:    ['dashboard', 'quality'],
-  production: ['dashboard', 'production'],
+  admin:      ['dashboard', 'sales', 'hr', 'quality', 'production', 'master', 'settings', 'reports', 'reminders'],
+  sales:      ['dashboard', 'sales', 'reminders'],
+  hr:         ['dashboard', 'hr', 'reminders'],
+  accountant: ['dashboard', 'finance', 'reminders'],
+  manager:    ['dashboard', 'production', 'quality', 'reminders'],
+  quality:    ['dashboard', 'quality', 'reminders'],
+  production: ['dashboard', 'production', 'reminders'],
 };
 
 const loadSavedPermissions = (): Record<string, string[]> => {
