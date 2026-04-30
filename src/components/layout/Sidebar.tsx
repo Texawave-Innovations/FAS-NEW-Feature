@@ -13,6 +13,7 @@ import {
   ChevronRight,
   LogOut,
   Trash2,
+  Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +32,7 @@ const menuItems: MenuItem[] = [
   { id: 'quality', label: 'Quality', icon: ClipboardCheck, path: '/quality' },
   { id: 'master', label: 'Master Lists', icon: Server, path: '/master' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+  { id: 'reminders', label: 'Reminders', icon: Bell, path: '/reminders' },
 ];
 
 export const Sidebar = () => {
