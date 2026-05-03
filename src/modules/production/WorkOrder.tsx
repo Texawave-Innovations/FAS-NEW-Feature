@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { CheckSquare, Pencil } from 'lucide-react';
+import { CheckSquare, Pencil, FileText, Play } from 'lucide-react';
+import { generateWorkOrderPDF } from './generateWorkOrderPDF';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,6 +46,7 @@ interface RMItemRecord {
 interface RouteRecord {
   routeId: string;
   routeName: string;
+  processes?: { processCode: string; processName: string }[];
 }
 
 interface ProcessTypeRecord {
@@ -69,6 +71,23 @@ interface RouteSeqRow {
   productionMethod: string;
   location: string;
   processDueDate: string;
+}
+
+export interface TrackingProcess {
+  processName: string;
+  processType: string;
+  assignee: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  startedAt: string;
+  completedAt: string;
+  remarks: string;
+}
+
+export interface WOTracking {
+  status: 'in_progress' | 'completed';
+  startedAt: string;
+  completedAt: string;
+  processes: Record<string, TrackingProcess> | TrackingProcess[];
 }
 
 const PRODUCTION_METHODS = ['In-House Within Location', 'In-House Different Location', 'Outsourced'];
@@ -151,6 +170,9 @@ export default function WorkOrder() {
   const [showRouteSeq,    setShowRouteSeq]    = useState(false);
   const [routeSeqHeader,  setRouteSeqHeader]  = useState(emptyRouteSeqHeader);
   const [routeSeqRows,    setRouteSeqRows]    = useState<RouteSeqRow[]>([]);
+  // Stores the FG item of the work order being processed — survives form reset
+  const [woFgItem,        setWoFgItem]        = useState('');
+  const [trackingMap,     setTrackingMap]     = useState<Record<string, WOTracking>>({});
 
   useEffect(() => { loadData(); }, []);
 
@@ -212,7 +234,19 @@ export default function WorkOrder() {
       setRmItems(rms);
     }
 
-    if (woSnap.exists()) setWorkOrders(woSnap.val());
+    if (woSnap.exists()) {
+      const raw = woSnap.val() as Record<string, any>;
+      const wos: Record<string, WorkOrderRecord> = {};
+      const trk: Record<string, WOTracking> = {};
+      Object.entries(raw).forEach(([k, v]) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { tracking, routeSequence, detail, ...rest } = v;
+        wos[k] = rest as WorkOrderRecord;
+        if (tracking) trk[k] = tracking;
+      });
+      setWorkOrders(wos);
+      setTrackingMap(trk);
+    }
 
     if (salesSnap.exists()) {
       const val = salesSnap.val();
@@ -303,9 +337,33 @@ export default function WorkOrder() {
     setWorkOrders((prev) => ({ ...prev, [newRef.key!]: record }));
     toast({ title: `Work Order ${woNo} created` });
     setLastWoKey(newRef.key!);
+    setWoFgItem(form.fgItem);   // capture before form is cleared
     setDetailForm(emptyDetail);
     setShowDetailForm(true);
     setForm(emptyForm);
+  };
+
+  // Shared helper — builds process rows for a route and updates header + rows state
+  const applyRouteToSeq = (routeId: string, routeType: string) => {
+    const route = routes.find(r => r.routeId === routeId);
+    const rawProcesses = route?.processes;
+    const routeProcesses: { processCode: string; processName: string }[] = rawProcesses
+      ? (Array.isArray(rawProcesses) ? rawProcesses : Object.values(rawProcesses))
+      : [];
+
+    const rows: RouteSeqRow[] = routeProcesses.map(rp => {
+      const pm = processMasters.find(p => p.processId === rp.processCode);
+      return {
+        processType: pm?.processType || rp.processName,
+        processName: rp.processName,
+        productionMethod: '',
+        location: '',
+        processDueDate: '',
+      };
+    });
+
+    setRouteSeqHeader({ routeId, routeName: route?.routeName || '', routeType });
+    setRouteSeqRows(rows);
   };
 
   const handleRouteSequence = async () => {
@@ -313,29 +371,23 @@ export default function WorkOrder() {
     await update(ref(database, `production/workOrders/${lastWoKey}`), {
       detail: { ...detailForm, qtyPerTube },
     });
-    // Initialise rows from all process types
-    setRouteSeqRows(
-      processTypes.map(pt => ({
-        processType: pt.processTypeName,
-        processName: '',
-        productionMethod: '',
-        location: '',
-        processDueDate: '',
-      }))
-    );
-    setRouteSeqHeader(emptyRouteSeqHeader);
+
+    // Auto-select the Primary route mapped to this FG item
+    const primaryIR = itemRoutes.find(ir => ir.itemCode === woFgItem && ir.routeType === 'Primary');
+
     setShowRouteSeq(true);
+
+    if (primaryIR) {
+      applyRouteToSeq(primaryIR.routeCode, primaryIR.routeType);
+    } else {
+      setRouteSeqHeader(emptyRouteSeqHeader);
+      setRouteSeqRows([]);
+    }
   };
 
   const handleRouteIdChange = (routeId: string) => {
-    const route = routes.find(r => r.routeId === routeId);
-    const fgItem = workOrders[lastWoKey]?.fgItem || '';
-    const ir = itemRoutes.find(r => r.routeCode === routeId && r.itemCode === fgItem);
-    setRouteSeqHeader({
-      routeId,
-      routeName: route?.routeName || '',
-      routeType: ir?.routeType || '',
-    });
+    const ir = itemRoutes.find(r => r.routeCode === routeId && r.itemCode === woFgItem);
+    applyRouteToSeq(routeId, ir?.routeType || '');
   };
 
   const updateRouteSeqRow = (idx: number, field: keyof RouteSeqRow, value: string) => {
@@ -352,6 +404,57 @@ export default function WorkOrder() {
     });
     toast({ title: 'Route Sequence saved' });
     setShowRouteSeq(false);
+  };
+
+  const handlePrintPDF = async (key: string, wo: WorkOrderRecord) => {
+    // Load full work order data (detail + routeSequence) from Firebase
+    const snap = await get(ref(database, `production/workOrders/${key}`));
+    const full = snap.exists() ? snap.val() : {};
+    generateWorkOrderPDF({
+      ...wo,
+      customerId: wo.customerId || '',
+      detail: full.detail,
+      routeSequence: full.routeSequence,
+    });
+  };
+
+  const handleStart = async (key: string, wo: WorkOrderRecord) => {
+    const snap = await get(ref(database, `production/workOrders/${key}/routeSequence`));
+    if (!snap.exists()) {
+      toast({ title: 'No Route Sequence found — add one first', variant: 'destructive' });
+      return;
+    }
+    const rs = snap.val();
+    const rawRows = rs?.rows;
+    const rows: RouteSeqRow[] = rawRows
+      ? (Array.isArray(rawRows) ? rawRows : Object.values(rawRows))
+      : [];
+
+    if (rows.length === 0) {
+      toast({ title: 'Route Sequence is empty — add processes first', variant: 'destructive' });
+      return;
+    }
+
+    const processes: TrackingProcess[] = rows.map((r, i) => ({
+      processName: r.processName,
+      processType: r.processType,
+      assignee: '',
+      status: i === 0 ? 'in_progress' : 'pending',
+      startedAt: i === 0 ? new Date().toISOString() : '',
+      completedAt: '',
+      remarks: '',
+    }));
+
+    const tracking: WOTracking = {
+      status: 'in_progress',
+      startedAt: new Date().toISOString(),
+      completedAt: '',
+      processes,
+    };
+
+    await set(ref(database, `production/workOrders/${key}/tracking`), tracking);
+    setTrackingMap(prev => ({ ...prev, [key]: tracking }));
+    toast({ title: `${wo.workOrderNo} started — tracking ${processes.length} processes` });
   };
 
   const handleEdit = (key: string, wo: WorkOrderRecord) => {
@@ -642,54 +745,46 @@ export default function WorkOrder() {
         <Card>
           <CardContent className="pt-6 space-y-5">
 
-            {/* Header row: Route ID | Route Name | Route Type (dropdown) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-              <div className="space-y-1">
-                <Label>Route ID <span className="text-red-500">*</span></Label>
-                <Select value={routeSeqHeader.routeId} onValueChange={handleRouteIdChange}>
-                  <SelectTrigger><SelectValue placeholder="-- SELECT --" /></SelectTrigger>
-                  <SelectContent>
-                    {routes.length === 0 && (
-                      <SelectItem value="_none" disabled>No routes in Route Master</SelectItem>
-                    )}
-                    {routes.map(r => (
-                      <SelectItem key={r.routeId} value={r.routeId}>{r.routeId}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Route Name</Label>
-                <Input readOnly value={routeSeqHeader.routeName}
-                  className="bg-muted text-muted-foreground" placeholder="Auto-filled from Route ID" />
-              </div>
-              <div className="space-y-1">
-                <Label>Route Type <span className="text-red-500">*</span></Label>
-                <Select value={routeSeqHeader.routeType}
-                  onValueChange={(v) => {
-                    setRouteSeqHeader(h => ({ ...h, routeType: v }));
-                    // Build process rows when both Route ID and Route Type are set
-                    if (routeSeqHeader.routeId) {
-                      setRouteSeqRows(processTypes.map(pt => ({
-                        processType: pt.processTypeName,
-                        processName: '',
-                        productionMethod: '',
-                        location: '',
-                        processDueDate: '',
-                      })));
-                    }
-                  }}>
-                  <SelectTrigger><SelectValue placeholder="-- SELECT --" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Primary">Primary</SelectItem>
-                    <SelectItem value="Alternate">Alternate</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            {/* Header row: Route ID | Route Name | Route Type */}
+            {(() => {
+              const mappedRouteIds = new Set(
+                itemRoutes.filter(ir => ir.itemCode === woFgItem).map(ir => ir.routeCode)
+              );
+              const filteredRoutes = mappedRouteIds.size > 0
+                ? routes.filter(r => mappedRouteIds.has(r.routeId))
+                : routes;
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                  <div className="space-y-1">
+                    <Label>Route ID <span className="text-red-500">*</span></Label>
+                    <Select value={routeSeqHeader.routeId} onValueChange={handleRouteIdChange}>
+                      <SelectTrigger><SelectValue placeholder="-- SELECT --" /></SelectTrigger>
+                      <SelectContent>
+                        {filteredRoutes.length === 0 && (
+                          <SelectItem value="_none" disabled>No routes mapped for this item</SelectItem>
+                        )}
+                        {filteredRoutes.map(r => (
+                          <SelectItem key={r.routeId} value={r.routeId}>{r.routeId}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Route Name</Label>
+                    <Input readOnly value={routeSeqHeader.routeName}
+                      className="bg-muted text-muted-foreground" placeholder="Auto-filled from Route ID" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Route Type</Label>
+                    <Input readOnly value={routeSeqHeader.routeType}
+                      className="bg-muted text-muted-foreground" placeholder="Auto-filled from Item-Route" />
+                  </div>
+                </div>
+              );
+            })()}
 
-            {/* Process table — shown only after both Route ID and Route Type selected */}
-            {routeSeqHeader.routeId && routeSeqHeader.routeType && (
+            {/* Process table — shown once a Route ID is selected */}
+            {routeSeqHeader.routeId && (
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -706,7 +801,7 @@ export default function WorkOrder() {
                     {routeSeqRows.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
-                          No process types found — add them in Production Master → Process → Process Type Master
+                          Select a Route ID to load its processes
                         </TableCell>
                       </TableRow>
                     )}
@@ -803,6 +898,8 @@ export default function WorkOrder() {
                   <TableHead>PO Qty</TableHead>
                   <TableHead>Req Qty</TableHead>
                   <TableHead>Due Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>PDF</TableHead>
                   <TableHead>Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -818,6 +915,40 @@ export default function WorkOrder() {
                     <TableCell>{wo.poQty}</TableCell>
                     <TableCell>{wo.requiredQty}</TableCell>
                     <TableCell>{wo.dueDate}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const trk = trackingMap[id];
+                        if (!trk) {
+                          return (
+                            <Button size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white h-7 text-xs px-3 gap-1"
+                              onClick={() => handleStart(id, wo)}>
+                              <Play className="h-3 w-3 fill-white" /> Start
+                            </Button>
+                          );
+                        }
+                        if (trk.status === 'completed') {
+                          return (
+                            <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                              Completed
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+                            In Progress
+                          </span>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="ghost"
+                        className="text-red-600 hover:text-red-800 hover:bg-red-50 h-8 w-8 p-0"
+                        onClick={() => handlePrintPDF(id, wo)}
+                        title="Download Process Card PDF">
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                     <TableCell>
                       <Button size="sm" variant="ghost"
                         className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 h-8 w-8 p-0"

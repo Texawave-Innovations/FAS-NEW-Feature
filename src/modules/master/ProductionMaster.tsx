@@ -31,9 +31,15 @@ interface MachineRecord {
   machineGroupName: string;
 }
 
+interface RouteProcessEntry {
+  processCode: string;
+  processName: string;
+}
+
 interface RouteRecord {
   routeId: string;
   routeName: string;
+  processes: RouteProcessEntry[];
 }
 
 interface ProcessTypeRecord {
@@ -66,7 +72,7 @@ interface ItemRouteRecord {
   routeType: string;
 }
 
-const emptyRouteForm: RouteRecord = { routeId: '', routeName: '' };
+const emptyRouteForm: RouteRecord = { routeId: '', routeName: '', processes: [] };
 const emptyItemRouteForm: ItemRouteRecord = {
   itemCode: '', itemName: '', routeCode: '', routeName: '', routeType: '',
 };
@@ -181,6 +187,7 @@ export default function ProductionMaster() {
   const [routeForm, setRouteForm] = useState<RouteRecord>(emptyRouteForm);
   const [showRouteForm, setShowRouteForm] = useState(false);
   const [editingRouteKey, setEditingRouteKey] = useState<string | null>(null);
+  const [routeProcessSelection, setRouteProcessSelection] = useState('');
 
   // Item-Route state
   const [itemRoutes, setItemRoutes] = useState<Record<string, ItemRouteRecord>>({});
@@ -463,6 +470,30 @@ export default function ProductionMaster() {
 
   // ── Route handlers ────────────────────────────────────────────────────────────
 
+  const normaliseProcesses = (raw: unknown): RouteProcessEntry[] => {
+    if (!raw) return [];
+    return Array.isArray(raw) ? raw : Object.values(raw as Record<string, RouteProcessEntry>);
+  };
+
+  const addProcessToRoute = (processId: string) => {
+    const proc = Object.values(processes).find((p) => p.processId === processId);
+    if (!proc) return;
+    const current = normaliseProcesses(routeForm.processes);
+    if (current.some((p) => p.processCode === processId)) return;
+    setRouteForm((f) => ({
+      ...f,
+      processes: [...normaliseProcesses(f.processes), { processCode: processId, processName: proc.processName }],
+    }));
+    setRouteProcessSelection('');
+  };
+
+  const removeProcessFromRoute = (processCode: string) => {
+    setRouteForm((f) => ({
+      ...f,
+      processes: normaliseProcesses(f.processes).filter((p) => p.processCode !== processCode),
+    }));
+  };
+
   const saveRoute = async () => {
     if (!routeForm.routeId.trim() || !routeForm.routeName.trim()) {
       toast({ title: 'Route ID and Route Name are required', variant: 'destructive' });
@@ -473,13 +504,19 @@ export default function ProductionMaster() {
     setRoutes(updated);
     await set(ref(database, 'masters/material/routes'), updated);
     setRouteForm(emptyRouteForm);
+    setRouteProcessSelection('');
     setShowRouteForm(false);
     setEditingRouteKey(null);
     toast({ title: editingRouteKey ? 'Route updated' : 'Route saved' });
   };
 
   const editRoute = (key: string, route: RouteRecord) => {
-    setRouteForm({ ...route });
+    const rawProcesses = route.processes;
+    const processes = rawProcesses
+      ? (Array.isArray(rawProcesses) ? rawProcesses : Object.values(rawProcesses))
+      : [];
+    setRouteForm({ ...route, processes });
+    setRouteProcessSelection('');
     setEditingRouteKey(key);
     setShowRouteForm(true);
   };
@@ -1116,25 +1153,79 @@ export default function ProductionMaster() {
           <CardContent>
             {showRouteForm && (
               <div className="mb-6 p-4 border border-border rounded-lg bg-muted/30 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label>Route ID <span className="text-red-500">*</span></Label>
-                    <Input placeholder="Enter route ID" value={routeForm.routeId}
-                      onChange={(e) => setRouteForm({ ...routeForm, routeId: e.target.value })} />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left: inputs */}
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <Label>Route ID <span className="text-red-500">*</span></Label>
+                      <Input placeholder="Enter route ID" value={routeForm.routeId}
+                        onChange={(e) => setRouteForm({ ...routeForm, routeId: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Route Name <span className="text-red-500">*</span></Label>
+                      <Input placeholder="Enter route name" value={routeForm.routeName}
+                        onChange={(e) => setRouteForm({ ...routeForm, routeName: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Process Type</Label>
+                      <Select value={routeProcessSelection} onValueChange={addProcessToRoute}>
+                        <SelectTrigger><SelectValue placeholder="-- SELECT --" /></SelectTrigger>
+                        <SelectContent>
+                          {Object.values(processes).length === 0 && (
+                            <SelectItem value="_none" disabled>Add processes in Process Master first</SelectItem>
+                          )}
+                          {Object.values(processes).map((p) => (
+                            <SelectItem key={p.processId} value={p.processId}>
+                              {p.processName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label>Route Name <span className="text-red-500">*</span></Label>
-                    <Input placeholder="Enter route name" value={routeForm.routeName}
-                      onChange={(e) => setRouteForm({ ...routeForm, routeName: e.target.value })} />
+
+                  {/* Right: process list table */}
+                  <div className="border border-border rounded overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead>Process Code</TableHead>
+                          <TableHead>Process Name</TableHead>
+                          <TableHead className="w-16">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {normaliseProcesses(routeForm.processes).map((p) => (
+                          <TableRow key={p.processCode}>
+                            <TableCell className="font-medium">{p.processCode}</TableCell>
+                            <TableCell>{p.processName}</TableCell>
+                            <TableCell>
+                              <button onClick={() => removeProcessFromRoute(p.processCode)}
+                                className="p-1.5 rounded bg-sky-400 hover:bg-sky-500 text-white">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {normaliseProcesses(routeForm.processes).length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center text-muted-foreground py-4 text-sm">
+                              No processes added
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
+
                 <div className="flex gap-2">
                   <Button onClick={saveRoute} className="bg-green-600 hover:bg-green-700 text-white">
                     {editingRouteKey ? 'Update' : 'Save'}
                   </Button>
-                  <Button onClick={() => setRouteForm(emptyRouteForm)}
+                  <Button onClick={() => { setRouteForm(emptyRouteForm); setRouteProcessSelection(''); }}
                     className="bg-yellow-500 hover:bg-yellow-600 text-white">Clear</Button>
-                  <Button onClick={() => { setShowRouteForm(false); setRouteForm(emptyRouteForm); setEditingRouteKey(null); }}
+                  <Button onClick={() => { setShowRouteForm(false); setRouteForm(emptyRouteForm); setRouteProcessSelection(''); setEditingRouteKey(null); }}
                     className="bg-red-500 hover:bg-red-600 text-white">Cancel</Button>
                 </div>
               </div>
@@ -1145,7 +1236,7 @@ export default function ProductionMaster() {
                   <TableHead className="w-16">S.No</TableHead>
                   <TableHead>Route ID</TableHead>
                   <TableHead>Route Name</TableHead>
-                  <TableHead>Total Process</TableHead>
+                  <TableHead>No. of Processes</TableHead>
                   <TableHead className="w-28">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1155,7 +1246,7 @@ export default function ProductionMaster() {
                     <TableCell>{idx + 1}</TableCell>
                     <TableCell className="font-medium">{route.routeId}</TableCell>
                     <TableCell>{route.routeName}</TableCell>
-                    <TableCell className="text-muted-foreground">—</TableCell>
+                    <TableCell>{(Array.isArray(route.processes) ? route.processes : Object.values(route.processes || {})).length}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <button onClick={() => editRoute(id, route)}
