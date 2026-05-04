@@ -325,7 +325,7 @@ function ProductCombobox({ products, value, onChange, currencySymbol }: ProductC
             ) : (
               filtered.map(p => (
                 <div
-                  key={p.productCode}
+                  key={`${p.parentId}-${p.productCode}`}
                   className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-blue-50 text-sm transition-colors ${value === p.productCode ? 'bg-blue-50 font-semibold' : ''}`}
                   onClick={() => { onChange(p.productCode); setOpen(false); setSearch(''); }}
                 >
