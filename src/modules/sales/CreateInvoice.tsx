@@ -431,7 +431,8 @@ export default function CreateInvoice() {
     if (!order) return
 
     setSelectedOrder(order)
-    setSelectedCustomer(null)
+    const customer = customers.find((c) => c.id === order.customerId)
+    setSelectedCustomer(customer || null)
     setOrderDropdownOpen(false)
     setOrderSearch("")
 
@@ -986,10 +987,13 @@ export default function CreateInvoice() {
   };
 
   const billingAddress =
-    quotation?.billingAddress || selectedCustomer?.addresses?.find((a: any) => a.type === "billing")
+    quotation?.billingAddress || 
+    selectedCustomer?.addresses?.find((a: any) => a.type === "billing") ||
+    selectedOrder?.customerAddress
   const shippingAddress =
     quotation?.shippingAddress ||
-    selectedCustomer?.addresses?.find((a: any) => a.type === "shipping")
+    selectedCustomer?.addresses?.find((a: any) => a.type === "shipping") ||
+    selectedOrder?.customerAddress
 
   if (loadingInvoice) {
     return (

@@ -1765,9 +1765,12 @@ export default function SalesOrders() {
           <h1 className="text-3xl font-bold">Sales Orders</h1>
           <p className="text-muted-foreground">Real-time production & quality tracking</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <Dialog open={isCreateOpen} onOpenChange={(open) => {
+          if (!open) resetForm();
+          setIsCreateOpen(open);
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => resetForm()}>
               <Plus className="mr-2 h-4 w-4" />
               Create Sales Order
             </Button>

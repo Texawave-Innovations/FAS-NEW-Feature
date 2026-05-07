@@ -22,7 +22,7 @@ export interface RunningNumberConfig {
 }
 
 const BASE_PATH = 'masters/runningNumbers';
-const BASE_SEQ = 90; // Starting sequence base (so the next sequence becomes 0091)
+const BASE_SEQ = 0; // Starting sequence base (so the next sequence becomes 0001)
 
 // Helper to extract prefix from a fallback string (e.g. "FAS/25-26/12345" -> "FAS/25-26")
 function extractPrefix(fallback: string): string {
@@ -50,15 +50,16 @@ export async function getRunningNumberConfig(
 }
 
 // ── SAVE config (admin master list) ─────────────────────────────────────────
-// Saves the prefix + resets nextSeq to BASE_SEQ + 1. Called when admin clicks ✅.
+// Saves the prefix + optionally sets nextSeq. Called when admin clicks ✅.
 export async function saveRunningNumberConfig(
   docType: DocType,
   prefix: string,
-  updatedAt: string
+  updatedAt: string,
+  nextSeq?: number
 ): Promise<void> {
   await set(ref(database, `${BASE_PATH}/${docType}`), {
     prefix,
-    nextSeq: BASE_SEQ + 1,
+    nextSeq: nextSeq !== undefined ? nextSeq : BASE_SEQ + 1,
     updatedAt,
   } satisfies RunningNumberConfig);
 }
@@ -94,10 +95,17 @@ export async function generateNextNumber(
       // Auto-initialize if it doesn't exist
       const prefix = extractPrefix(fallback);
       generatedNumber = `${prefix}-${String(BASE_SEQ + 1).padStart(4, '0')}`;
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const hh = String(today.getHours()).padStart(2, '0');
+      const min = String(today.getMinutes()).padStart(2, '0');
+      
       return {
         prefix,
         nextSeq: BASE_SEQ + 2,
-        updatedAt: new Date().toISOString()
+        updatedAt: `${yyyy}/${mm}/${dd} ${hh}:${min}`
       };
     }
 

@@ -81,18 +81,38 @@ function RunningNumberSection() {
     setSaving(true);
     try {
       const today = new Date();
-      const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const hh = String(today.getHours()).padStart(2, '0');
+      const min = String(today.getMinutes()).padStart(2, '0');
+      const dateStr = `${yyyy}/${mm}/${dd} ${hh}:${min}`;
 
-      await saveRunningNumberConfig(selected, inputValue.trim(), dateStr);
+      let finalPrefix = inputValue.trim();
+      let nextSeq = 1;
+
+      // Extract numeric part if provided
+      const match = finalPrefix.match(/^(.*[^0-9])(\d+)$/);
+      if (match) {
+        let prefixPart = match[1];
+        const numPart = match[2];
+        if (prefixPart.endsWith('-') || prefixPart.endsWith('/')) {
+          prefixPart = prefixPart.slice(0, -1);
+        }
+        finalPrefix = prefixPart;
+        nextSeq = parseInt(numPart, 10) + 1;
+      }
+
+      await saveRunningNumberConfig(selected, finalPrefix, dateStr, nextSeq);
 
       // Update local state
       setConfigs((prev) => ({
         ...prev,
-        [selected]: { prefix: inputValue.trim(), nextSeq: 1, updatedAt: dateStr },
+        [selected]: { prefix: finalPrefix, nextSeq, updatedAt: dateStr },
       }));
       setSavedDate((prev) => ({ ...prev, [selected]: dateStr }));
 
-      toast({ title: `${DOC_TYPES.find((d) => d.key === selected)?.label} prefix saved — counter reset to 0001` });
+      toast({ title: `${DOC_TYPES.find((d) => d.key === selected)?.label} saved. Next number: ${finalPrefix}-${String(nextSeq).padStart(4, '0')}` });
 
       // Reset form
       setSelected('');
@@ -111,7 +131,7 @@ function RunningNumberSection() {
       <CardHeader className="bg-blue-50 rounded-t-lg pb-3">
         <CardTitle className="text-xl text-blue-900 font-bold">Running Number</CardTitle>
         <p className="text-sm text-blue-700 mt-1">
-          Set the prefix for each document type. The counter resets to 0001 whenever you save a new prefix.
+          Set the prefix (e.g. INVFY26-27). If you include a custom number at the end (e.g. INVFY26-27-0145), the counter will continue from that number instead of resetting to 0001.
         </p>
       </CardHeader>
       <CardContent className="pt-5">

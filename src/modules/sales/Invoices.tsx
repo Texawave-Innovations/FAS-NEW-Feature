@@ -909,9 +909,8 @@ export default function InvoicesPage() {
                               .map((c) => (
                                 <li
                                   key={c.id}
-                                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${
-                                    selectedCustomerId === c.id ? 'bg-blue-50 font-semibold' : ''
-                                  }`}
+                                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${selectedCustomerId === c.id ? 'bg-blue-50 font-semibold' : ''
+                                    }`}
                                   onClick={() => {
                                     setSelectedCustomerId(c.id)
                                     setCustomerFilterOpen(false)
@@ -926,8 +925,8 @@ export default function InvoicesPage() {
                               const q = customerFilterSearch.toLowerCase()
                               return (c.companyName || '').toLowerCase().includes(q) || (c.customerCode || '').toLowerCase().includes(q)
                             }).length === 0 && (
-                              <li className="px-3 py-3 text-sm text-gray-400 text-center">No customers match</li>
-                            )}
+                                <li className="px-3 py-3 text-sm text-gray-400 text-center">No customers match</li>
+                              )}
                           </ul>
                         </div>
                       )}
@@ -989,8 +988,8 @@ export default function InvoicesPage() {
                           <TableHead>Customer</TableHead>
                           <TableHead>Amount</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Cancel Remark</TableHead>
                           <TableHead>Actions</TableHead>
+                          <TableHead>Cancel Remark</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1072,16 +1071,6 @@ export default function InvoicesPage() {
                                 <Trash2 className="h-4 w-4 text-orange-500" />
                               </Button>
                             </TableCell>
-                            {/* Status cell — already exists, keep it */}
-                            <TableCell>
-                              <span className={`px-3 py-1 text-xs rounded-full font-medium ${inv.status === 'cancelled'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-green-100 text-green-800'
-                                }`}>
-                                {inv.status === 'cancelled' ? 'Cancelled' : 'Generated'}
-                              </span>
-                            </TableCell>
-
                             {/* ADD THIS new cell right after: */}
                             <TableCell className="max-w-[200px]">
                               {inv.status === 'cancelled' && inv.cancelRemark ? (
