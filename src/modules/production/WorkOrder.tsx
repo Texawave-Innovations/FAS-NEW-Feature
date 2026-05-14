@@ -125,25 +125,25 @@ const emptyForm = {
   fgDescription: '',
   finishingSize: '',
   poQty: '0.00',
-  requiredQty: '0.000',
+  requiredQty: '',
 };
 
 const emptyDetail = {
   warehouse: '',
   rmGrade: '',
   materialCode: '',
-  sizeL: '0.00',
-  sizeW: '0.00',
-  sizeH: '0.00',
+  sizeL: '',
+  sizeW: '',
+  sizeH: '',
   rmCode: '',
   stockInHand: '0.000',
-  dieNoL: '0.00',
-  dieNoW: '0.00',
-  dieNoH: '0.00',
-  requiredQty: '0.000',
-  tubeQty: '0.000',
-  totalWeight: '0.00',
-  toolSize: '0.000',
+  dieNoL: '',
+  dieNoW: '',
+  dieNoH: '',
+  requiredQty: '',
+  tubeQty: '',
+  totalWeight: '',
+  toolSize: '',
 };
 
 const WORK_ORDER_TYPES = ['Production', 'ReProcess', 'Scheduling'];

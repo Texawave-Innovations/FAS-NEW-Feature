@@ -34,7 +34,7 @@ interface SalesOrderRecord {
 
 const emptyLine: LineItem = {
   fgItem: '', fgDescription: '', uom: '',
-  poQty: '0.000', unitPrice: '0.000',
+  poQty: '', unitPrice: '',
   dueDate: new Date().toISOString().split('T')[0],
   rmCode: '', referenceNo: '',
 };
@@ -410,12 +410,12 @@ export default function SalesOrder() {
                     </div>
                     <div className="space-y-1">
                       <Label>PO Qty <span className="text-red-500">*</span></Label>
-                      <Input type="number" value={line.poQty}
+                      <Input type="number" value={line.poQty} placeholder="0.000"
                         onChange={(e) => setLine({ ...line, poQty: e.target.value })} />
                     </div>
                     <div className="space-y-1">
                       <Label>Unit Price</Label>
-                      <Input type="number" value={line.unitPrice}
+                      <Input type="number" value={line.unitPrice} placeholder="0.000"
                         onChange={(e) => setLine({ ...line, unitPrice: e.target.value })} />
                     </div>
                     <div className="space-y-1">
