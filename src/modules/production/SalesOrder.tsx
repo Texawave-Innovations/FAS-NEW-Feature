@@ -205,6 +205,12 @@ export default function SalesOrder() {
     setApprovalRows(buildRows(salesOrders, appSOKey, appDueDate));
   };
 
+  const handleClearAllFilters = () => {
+    setAppSOKey('');
+    setAppDueDate('');
+    setApprovalRows(buildRows(salesOrders));
+  };
+
   const toggleRow = (idx: number) =>
     setApprovalRows((rows) => rows.map((r, i) => i === idx ? { ...r, selected: !r.selected } : r));
 
@@ -527,9 +533,12 @@ export default function SalesOrder() {
                   <Input type="date" value={appDueDate} onChange={(e) => setAppDueDate(e.target.value)} />
                 </div>
               </div>
-              <div className="mt-4">
-                <Button onClick={handleLoad} className="bg-primary px-8" disabled={!appSOKey}>
-                  Load
+              <div className="mt-4 flex gap-3">
+                <Button onClick={handleLoad} className="bg-primary px-8">
+                  Filter
+                </Button>
+                <Button onClick={handleClearAllFilters} variant="outline" className="px-6 border-slate-400 text-slate-700 hover:bg-slate-50">
+                  Clear All Filters
                 </Button>
               </div>
             </CardContent>

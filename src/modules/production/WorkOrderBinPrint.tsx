@@ -14,7 +14,8 @@ import { toast } from '@/hooks/use-toast';
 interface WorkOrderRecord {
   workOrderNo: string;
   poNo: string;
-  soNo: string;
+  soNo: string;          // Firebase key stored in DB
+  soNoDisplay: string;   // resolved human-readable SO number
   customerName: string;
   fgItem: string;
   fgDescription: string;
@@ -63,11 +64,33 @@ export default function WorkOrderBinPrint() {
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
-    const [woSnap, binSnap] = await Promise.all([
+    const [woSnap, binSnap, soSnap] = await Promise.all([
       get(ref(database, 'production/workOrders')),
       get(ref(database, 'production/workOrderBinPrint')),
+      get(ref(database, 'production/salesOrders')),
     ]);
-    if (woSnap.exists())  setWorkOrders(woSnap.val());
+
+    // Build SO key → readable number lookup
+    const soLookup: Record<string, string> = {};
+    if (soSnap.exists()) {
+      const soRaw = soSnap.val() as Record<string, any>;
+      Object.entries(soRaw).forEach(([k, so]) => {
+        soLookup[k] = so.soNumber || so.poNumber || k;
+      });
+    }
+
+    if (woSnap.exists()) {
+      const raw = woSnap.val() as Record<string, any>;
+      // Inject resolved soNoDisplay into each WO record
+      const resolved: Record<string, WorkOrderRecord> = {};
+      Object.entries(raw).forEach(([k, wo]) => {
+        resolved[k] = {
+          ...wo,
+          soNoDisplay: soLookup[wo.soNo] || wo.soNo || '',
+        } as WorkOrderRecord;
+      });
+      setWorkOrders(resolved);
+    }
     if (binSnap.exists()) setBinRecords(binSnap.val());
   };
 
@@ -82,14 +105,16 @@ export default function WorkOrderBinPrint() {
     const base = selectedPO !== 'ALL'
       ? Object.values(workOrders).filter(w => w.poNo === selectedPO)
       : Object.values(workOrders);
-    const vals = Array.from(new Set(base.map(w => w.soNo).filter(Boolean))).sort();
+    // Show resolved SO number in the dropdown
+    const vals = Array.from(new Set(base.map(w => w.soNoDisplay || w.soNo).filter(Boolean))).sort();
     return ['ALL', ...vals];
   }, [workOrders, selectedPO]);
 
   const woNOs = useMemo(() => {
     let base = Object.values(workOrders);
     if (selectedPO !== 'ALL') base = base.filter(w => w.poNo === selectedPO);
-    if (selectedSO !== 'ALL') base = base.filter(w => w.soNo === selectedSO);
+    // Filter by display SO number
+    if (selectedSO !== 'ALL') base = base.filter(w => (w.soNoDisplay || w.soNo) === selectedSO);
     const vals = Array.from(new Set(base.map(w => w.workOrderNo).filter(Boolean))).sort();
     return ['ALL', ...vals];
   }, [workOrders, selectedPO, selectedSO]);
@@ -113,7 +138,8 @@ export default function WorkOrderBinPrint() {
       const wo = Object.values(workOrders).find(w => w.workOrderNo === woNo);
       if (wo) {
         setSelectedPO(wo.poNo || 'ALL');
-        setSelectedSO(wo.soNo || 'ALL');
+        // Set the display SO value for the dropdown
+        setSelectedSO(wo.soNoDisplay || wo.soNo || 'ALL');
       }
     }
   };
@@ -201,24 +227,33 @@ export default function WorkOrderBinPrint() {
     const win = window.open('', '_blank', 'width=420,height=500');
     if (!win) { toast({ title: 'Please allow popups to print', variant: 'destructive' }); return; }
 
-    const binCount = parseInt(rec.totalBin) || 1;
+    const binCount   = parseInt(rec.totalBin)   || 1;
+    const printCount = parseInt(rec.totalPrint) || 1;
     let labels = '';
+
+    // Generate printCount copies of each bin label
+    let labelIndex = 0;
+    const totalLabels = binCount * printCount;
     for (let b = 1; b <= binCount; b++) {
-      labels += `
-        <div class="label" ${b < binCount ? 'style="page-break-after:always"' : ''}>
+      for (let cp = 1; cp <= printCount; cp++) {
+        labelIndex++;
+        labels += `
+        <div class="label" ${labelIndex < totalLabels ? 'style="page-break-after:always"' : ''}>
           <div class="company">FCS FLUORO CARBON SEALS</div>
           <div class="subtitle">BIN LABEL</div>
           <table>
             <tr><td class="k">Work Order No</td><td class="v">${rec.workOrderNo}</td></tr>
             <tr><td class="k">PO No</td><td class="v">${rec.poNo}</td></tr>
-            <tr><td class="k">SO No</td><td class="v">${rec.soNo}</td></tr>
+            <tr><td class="k">SO No</td><td class="v">${wo?.soNoDisplay || rec.soNo}</td></tr>
             ${wo ? `<tr><td class="k">Item Code</td><td class="v">${wo.fgItem}</td></tr>` : ''}
             ${wo ? `<tr><td class="k">Description</td><td class="v">${wo.fgDescription}</td></tr>` : ''}
             ${wo ? `<tr><td class="k">Required Qty</td><td class="v">${wo.requiredQty}</td></tr>` : ''}
             <tr><td class="k">Bin No</td><td class="v">${b} / ${rec.totalBin}</td></tr>
             <tr><td class="k">Total Bins</td><td class="v">${rec.totalBin}</td></tr>
+            <tr><td class="k">Copy</td><td class="v">${cp} / ${rec.totalPrint}</td></tr>
           </table>
         </div>`;
+      }
     }
 
     win.document.write(`
@@ -246,17 +281,24 @@ export default function WorkOrderBinPrint() {
     win.document.close();
   };
 
-  // ── Table data ─────────────────────────────────────────────────────────────
-
-  const allBinRows = useMemo(
-    () => Object.entries(binRecords).map(([key, r]) => ({ key, ...r })),
-    [binRecords]
-  );
+  // Enrich bin rows with resolved SO number from the linked WO
+  const allBinRows = useMemo(() => {
+    // Build workOrderNo → soNoDisplay lookup
+    const woToSo: Record<string, string> = {};
+    Object.values(workOrders).forEach(wo => {
+      woToSo[wo.workOrderNo] = wo.soNoDisplay || wo.soNo || '';
+    });
+    return Object.entries(binRecords).map(([key, r]) => ({
+      key,
+      ...r,
+      soNoDisplay: woToSo[r.workOrderNo] || r.soNo || '',
+    }));
+  }, [binRecords, workOrders]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return allBinRows.filter(r =>
-      !q || [r.poNo, r.soNo, r.workOrderNo, r.totalBin, r.totalPrint]
+      !q || [r.poNo, r.soNoDisplay, r.soNo, r.workOrderNo, r.totalBin, r.totalPrint]
         .some(v => v?.toLowerCase().includes(q))
     );
   }, [allBinRows, search]);
@@ -411,7 +453,7 @@ export default function WorkOrderBinPrint() {
                       setEditingKey(r.key);
                       setSelectedWO(r.workOrderNo);
                       setSelectedPO(r.poNo || 'ALL');
-                      setSelectedSO(r.soNo || 'ALL');
+                      setSelectedSO(r.soNoDisplay || r.soNo || 'ALL');
                       setTotalBin(r.totalBin);
                       setTotalPrint(r.totalPrint);
                       setPrinterName(r.printerName);
@@ -419,7 +461,7 @@ export default function WorkOrderBinPrint() {
                     }}>
                     <TableCell className="text-xs">{(page - 1) * pageSize + i + 1}</TableCell>
                     <TableCell className="text-xs">{r.poNo}</TableCell>
-                    <TableCell className="text-xs">{r.soNo}</TableCell>
+                    <TableCell className="text-xs">{r.soNoDisplay || r.soNo}</TableCell>
                     <TableCell className="text-xs font-medium text-primary">{r.workOrderNo}</TableCell>
                     <TableCell className="text-xs">{r.totalBin}</TableCell>
                     <TableCell className="text-xs">{r.totalPrint}</TableCell>

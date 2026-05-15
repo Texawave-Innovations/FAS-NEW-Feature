@@ -36,6 +36,8 @@ export default function Packing() {
   const [search,    setSearch]    = useState('');
   const [pageSize,  setPageSize]  = useState(10);
   const [page,      setPage]      = useState(1);
+  // Packing validation warning dialog
+  const [warnModal, setWarnModal] = useState<{ row: PackingRow; msg: string; excess?: number } | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -103,11 +105,39 @@ export default function Packing() {
 
   // Complete packing → move to Packing Completed
   const handleComplete = async (row: PackingRow) => {
-    const qty = allocated[row.key] ?? row.totalAllocated;
-    if (!qty || parseFloat(qty) <= 0) {
+    const qty     = allocated[row.key] ?? row.totalAllocated;
+    const allocQty = parseFloat(qty)   || 0;
+    const prodQty  = row.producedQty;
+
+    if (!qty || allocQty <= 0) {
       toast({ title: 'Enter Total Allocated Qty before completing', variant: 'destructive' });
       return;
     }
+
+    // Validation A: Allocated < Produced
+    if (allocQty < prodQty) {
+      setWarnModal({
+        row,
+        msg: `Allocated quantity (${allocQty}) is less than Produced Qty (${prodQty}). Do you still want to proceed?`,
+      });
+      return;
+    }
+
+    // Validation B: Allocated > Produced
+    if (allocQty > prodQty) {
+      const excess = allocQty - prodQty;
+      setWarnModal({
+        row,
+        msg: `Allocated quantity (${allocQty}) exceeds Produced Qty (${prodQty}). Excess: ${excess.toFixed(3)}. Do you still want to proceed?`,
+        excess,
+      });
+      return;
+    }
+
+    await doComplete(row, qty);
+  };
+
+  const doComplete = async (row: PackingRow, qty: string) => {
     setSaving(row.key);
     try {
       await update(ref(database, `production/workOrders/${row.key}/packing`), {
@@ -163,6 +193,42 @@ export default function Packing() {
 
   return (
     <div className="space-y-4">
+
+      {/* ── Warning / Confirmation Modal ─────────────────────────────────────── */}
+      {warnModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 space-y-4">
+            <h3 className="text-base font-semibold text-amber-700 flex items-center gap-2">
+              <span>⚠️</span> Packing Quantity Warning
+            </h3>
+            <p className="text-sm text-slate-700">{warnModal.msg}</p>
+            {warnModal.excess !== undefined && (
+              <p className="text-xs font-medium text-red-600 bg-red-50 rounded px-3 py-2">
+                Excess quantity: <strong>{warnModal.excess.toFixed(3)}</strong> units
+              </p>
+            )}
+            <div className="flex gap-3 justify-end">
+              <button
+                className="px-4 py-1.5 rounded border border-slate-300 text-sm hover:bg-slate-50"
+                onClick={() => setWarnModal(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium"
+                onClick={async () => {
+                  const row = warnModal.row;
+                  const qty = allocated[row.key] ?? row.totalAllocated;
+                  setWarnModal(null);
+                  await doComplete(row, qty);
+                }}
+              >
+                Proceed Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b">

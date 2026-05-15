@@ -344,6 +344,7 @@ export default function Dispatch() {
                   <TH>Item Name</TH>
                   <TH>Packing Id</TH>
                   <TH>WorkOrder No</TH>
+                  <TH>SO No</TH>
                   <TH>Customer Name</TH>
                   <TH>Packet Qty</TH>
                   <TH>Dispatch Qty</TH>
@@ -366,7 +367,7 @@ export default function Dispatch() {
               <TableBody>
                 {paginatedRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={tab === 'pending' ? 11 : 11}
+                    <TableCell colSpan={tab === 'pending' ? 12 : 12}
                       className="text-center text-muted-foreground py-10 text-sm">
                       {loading ? 'Loading…' : 'No data available in table'}
                     </TableCell>
@@ -380,6 +381,7 @@ export default function Dispatch() {
                     </TableCell>
                     <TableCell className="text-xs text-center">{row.packingId}</TableCell>
                     <TableCell className="text-xs text-center font-medium">{row.workOrderNo}</TableCell>
+                    <TableCell className="text-xs text-center font-medium text-primary">{row.soNo || '—'}</TableCell>
                     <TableCell className="text-xs">{row.customerName}</TableCell>
                     <TableCell className="text-xs text-center">{row.packetQty}</TableCell>
                     <TableCell className="text-xs text-center">

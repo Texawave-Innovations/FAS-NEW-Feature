@@ -20,6 +20,7 @@ interface QAData {
 
 interface WORow {
   key: string;
+  soNo: string;
   workOrderNo: string;
   customerName: string;
   plannedQty: number;
@@ -53,10 +54,22 @@ export default function ProductionQA() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const snap = await get(ref(database, 'production/workOrders'));
-      if (!snap.exists()) return;
+      const [woSnap, soSnap] = await Promise.all([
+        get(ref(database, 'production/workOrders')),
+        get(ref(database, 'production/salesOrders')),
+      ]);
+      if (!woSnap.exists()) return;
 
-      const raw = snap.val() as Record<string, any>;
+      // Build SO key → readable number lookup
+      const soLookup: Record<string, string> = {};
+      if (soSnap.exists()) {
+        const soRaw = soSnap.val() as Record<string, any>;
+        Object.entries(soRaw).forEach(([k, so]) => {
+          soLookup[k] = so.soNumber || so.poNumber || k;
+        });
+      }
+
+      const raw = woSnap.val() as Record<string, any>;
       const pend: WORow[] = [];
       const comp: WORow[] = [];
 
@@ -71,6 +84,7 @@ export default function ProductionQA() {
 
         const row: WORow = {
           key,
+          soNo:         soLookup[wo.soNo] || wo.soNo || '',
           workOrderNo:  wo.workOrderNo  || '',
           customerName: wo.customerName || '',
           plannedQty,
@@ -237,6 +251,7 @@ export default function ProductionQA() {
               <TableHeader>
                 <TableRow>
                   <TH className="w-10">S.No</TH>
+                  <TH>SO No</TH>
                   <TH>Work Order No</TH>
                   <TH>Customer Name</TH>
                   <TH>Planned Qty</TH>
@@ -252,7 +267,7 @@ export default function ProductionQA() {
               <TableBody>
                 {pending.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center text-muted-foreground py-10 text-sm">
+                    <TableCell colSpan={12} className="text-center text-muted-foreground py-10 text-sm">
                       {loading ? 'Loading…' : 'No pending QA records'}
                     </TableCell>
                   </TableRow>
@@ -262,6 +277,7 @@ export default function ProductionQA() {
                   return (
                     <TableRow key={row.key} className="hover:bg-muted/20">
                       <TableCell className="text-xs text-center">{i + 1}</TableCell>
+                      <TableCell className="text-xs font-medium text-primary">{row.soNo || '—'}</TableCell>
                       <TableCell className="text-xs font-medium text-primary">{row.workOrderNo}</TableCell>
                       <TableCell className="text-xs">{row.customerName}</TableCell>
                       <TableCell className="text-xs text-center">{row.plannedQty}</TableCell>
@@ -340,6 +356,7 @@ export default function ProductionQA() {
               <TableHeader>
                 <TableRow>
                   <TH className="w-10">S.No</TH>
+                  <TH>SO No</TH>
                   <TH>Work Order No</TH>
                   <TH>Customer Name</TH>
                   <TH>Planned Qty</TH>
@@ -354,13 +371,14 @@ export default function ProductionQA() {
               <TableBody>
                 {completed.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground py-10 text-sm">
+                    <TableCell colSpan={11} className="text-center text-muted-foreground py-10 text-sm">
                       {loading ? 'Loading…' : 'No completed QA records'}
                     </TableCell>
                   </TableRow>
                 ) : completed.map((row, i) => (
                   <TableRow key={row.key} className="hover:bg-muted/20">
                     <TableCell className="text-xs text-center">{i + 1}</TableCell>
+                    <TableCell className="text-xs font-medium text-primary">{row.soNo || '—'}</TableCell>
                     <TableCell className="text-xs font-medium text-primary">{row.workOrderNo}</TableCell>
                     <TableCell className="text-xs">{row.customerName}</TableCell>
                     <TableCell className="text-xs text-center">{row.plannedQty}</TableCell>
