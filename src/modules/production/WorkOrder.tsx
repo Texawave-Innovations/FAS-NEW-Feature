@@ -125,25 +125,25 @@ const emptyForm = {
   fgDescription: '',
   finishingSize: '',
   poQty: '0.00',
-  requiredQty: '0.000',
+  requiredQty: '',
 };
 
 const emptyDetail = {
   warehouse: '',
   rmGrade: '',
   materialCode: '',
-  sizeL: '0.00',
-  sizeW: '0.00',
-  sizeH: '0.00',
+  sizeL: '',
+  sizeW: '',
+  sizeH: '',
   rmCode: '',
   stockInHand: '0.000',
-  dieNoL: '0.00',
-  dieNoW: '0.00',
-  dieNoH: '0.00',
-  requiredQty: '0.000',
-  tubeQty: '0.000',
-  totalWeight: '0.00',
-  toolSize: '0.000',
+  dieNoL: '',
+  dieNoW: '',
+  dieNoH: '',
+  requiredQty: '',
+  tubeQty: '',
+  totalWeight: '',
+  toolSize: '',
 };
 
 const WORK_ORDER_TYPES = ['Production', 'ReProcess', 'Scheduling'];
@@ -311,14 +311,24 @@ export default function WorkOrder() {
       return;
     }
 
+    // Validate Required Qty vs PO Qty
+    const reqQty = parseFloat(form.requiredQty) || 0;
+    const poQty  = parseFloat(form.poQty)       || 0;
+    if (reqQty > poQty) {
+      toast({ title: 'Required Qty cannot be greater than PO Qty', variant: 'destructive' });
+      return;
+    }
+
     if (editingKey) {
       // Update existing record
       const record: WorkOrderRecord = { ...form, createdAt: workOrders[editingKey]?.createdAt ?? new Date().toISOString() };
       await set(ref(database, `production/workOrders/${editingKey}`), record);
       setWorkOrders((prev) => ({ ...prev, [editingKey]: record }));
       toast({ title: `Work Order ${form.workOrderNo} updated` });
-      setEditingKey(null);
-      setForm(emptyForm);
+      // Keep editingKey and detail form visible so user can also edit Warehouse / RM Grade / Route Sequence
+      setLastWoKey(editingKey);
+      setWoFgItem(form.fgItem);
+      setShowDetailForm(true);
       return;
     }
 
@@ -457,7 +467,7 @@ export default function WorkOrder() {
     toast({ title: `${wo.workOrderNo} started — tracking ${processes.length} processes` });
   };
 
-  const handleEdit = (key: string, wo: WorkOrderRecord) => {
+  const handleEdit = async (key: string, wo: WorkOrderRecord) => {
     setForm({
       workOrderType: wo.workOrderType,
       poNo:          wo.poNo,
@@ -475,7 +485,17 @@ export default function WorkOrder() {
       requiredQty:   wo.requiredQty,
     });
     setEditingKey(key);
-    setShowDetailForm(false);
+    setLastWoKey(key);
+    setWoFgItem(wo.fgItem);
+    // Load the saved detail so Warehouse / RM Grade etc. are pre-filled
+    const snap = await get(ref(database, `production/workOrders/${key}/detail`));
+    if (snap.exists()) {
+      setDetailForm({ ...emptyDetail, ...snap.val() });
+    } else {
+      setDetailForm(emptyDetail);
+    }
+    setShowDetailForm(true);
+    setShowRouteSeq(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -591,7 +611,7 @@ export default function WorkOrder() {
           {/* Buttons */}
           <div className="flex gap-3 justify-end pt-2">
             {editingKey && (
-              <Button variant="outline" onClick={() => { setEditingKey(null); setForm(emptyForm); }}
+              <Button variant="outline" onClick={() => { setEditingKey(null); setForm(emptyForm); setShowDetailForm(false); setShowRouteSeq(false); }}
                 className="px-6">
                 Cancel Edit
               </Button>
@@ -702,7 +722,17 @@ export default function WorkOrder() {
               <div className="space-y-1">
                 <Label>Required Qty <span className="text-red-500">*</span></Label>
                 <Input type="number" placeholder="0.000" value={detailForm.requiredQty}
-                  onChange={(e) => setDetailForm(d => ({ ...d, requiredQty: e.target.value }))} />
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const maxByPO  = parseFloat(form.poQty)       || Infinity;
+                    const maxByWO  = parseFloat(form.requiredQty) || Infinity;
+                    const maxAllowed = Math.min(maxByPO, maxByWO);
+                    if (parseFloat(val) > maxAllowed) {
+                      toast({ title: `Required Qty cannot exceed ${maxAllowed} (WO / PO Qty)`, variant: 'destructive' });
+                      return;
+                    }
+                    setDetailForm(d => ({ ...d, requiredQty: val }));
+                  }} />
               </div>
               <div className="space-y-1">
                 <Label>Tube Qty <span className="text-red-500">*</span></Label>

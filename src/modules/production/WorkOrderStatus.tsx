@@ -160,10 +160,22 @@ export default function WorkOrderStatus() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const snap = await get(ref(database, 'production/workOrders'));
-      if (!snap.exists()) { setAllRows([]); setLoaded(true); return; }
+      const [woSnap, soSnap] = await Promise.all([
+        get(ref(database, 'production/workOrders')),
+        get(ref(database, 'production/salesOrders')),
+      ]);
+      if (!woSnap.exists()) { setAllRows([]); setLoaded(true); return; }
 
-      const raw = snap.val() as Record<string, FullWO>;
+      // Build SO key → readable number lookup
+      const soLookup: Record<string, string> = {};
+      if (soSnap.exists()) {
+        const soRaw = soSnap.val() as Record<string, any>;
+        Object.entries(soRaw).forEach(([k, so]) => {
+          soLookup[k] = so.soNumber || so.poNumber || k;
+        });
+      }
+
+      const raw = woSnap.val() as Record<string, FullWO>;
       // Only show WOs that have been started (tracking exists)
       const rows: StatusRow[] = Object.entries(raw)
         .filter(([, wo]) => !!wo.tracking)
@@ -171,7 +183,7 @@ export default function WorkOrderStatus() {
           const seqRows = normaliseRows(wo.routeSequence?.rows);
           return {
             woKey:          key,
-            soNo:           wo.soNo || '',
+            soNo:           soLookup[wo.soNo] || wo.soNo || '',
             poNo:           wo.poNo || '',
             workOrderNo:    wo.workOrderNo || '',
             rmCode:         wo.detail?.rmCode || wo.detail?.materialCode || wo.detail?.rmGrade || '',
@@ -426,12 +438,14 @@ export default function WorkOrderStatus() {
                   <td className="px-3 py-2 text-muted-foreground">{p.processType}</td>
                   <td className="px-3 py-2 font-medium">{p.processName}</td>
 
-                  {/* Assignee */}
+                  {/* Assignee — use uncontrolled defaultValue to prevent focus loss */}
                   <td className="px-3 py-2">
-                    <Input
-                      className="h-7 text-xs w-32"
+                    <input
+                      key={`${row.woKey}-assignee-${idx}`}
+                      className="h-7 text-xs w-32 border border-input rounded-md px-2 bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                       placeholder="Enter name"
-                      value={trackingEdit[row.woKey]?.[idx]?.assignee ?? p.assignee}
+                      defaultValue={trackingEdit[row.woKey]?.[idx]?.assignee ?? p.assignee}
+                      onBlur={e => updateAssignee(row.woKey, idx, e.target.value)}
                       onChange={e => updateAssignee(row.woKey, idx, e.target.value)}
                       disabled={p.status === 'completed'}
                     />
@@ -513,10 +527,22 @@ export default function WorkOrderStatus() {
             <FilterSelect label="Route Id"     value={fRoute}    onChange={setFRoute}    options={opts.route} />
             <FilterSelect label="Status"       value={fStatus}   onChange={setFStatus}   options={opts.status} />
             <FilterSelect label="Customer Name" value={fCustomer} onChange={setFCustomer} options={opts.customer} />
-            <div className="flex items-end">
+            <div className="flex items-end gap-2">
               <Button onClick={loadData} disabled={loading}
-                className="bg-slate-700 hover:bg-slate-800 text-white w-full h-8">
-                {loading ? 'Loading…' : 'Load'}
+                className="bg-slate-700 hover:bg-slate-800 text-white flex-1 h-8">
+                {loading ? 'Loading…' : 'Filter'}
+              </Button>
+              <Button
+                variant="outline"
+                className="h-8 px-3 text-xs border-slate-400 text-slate-700 hover:bg-slate-50 whitespace-nowrap"
+                onClick={() => {
+                  setFPO('ALL'); setFSO('ALL'); setFWO('ALL');
+                  setFItem('ALL'); setFRoute('ALL'); setFStatus('ALL');
+                  setFCustomer('ALL'); setSearch('');
+                  loadData();
+                }}
+              >
+                Clear All Filters
               </Button>
             </div>
           </div>

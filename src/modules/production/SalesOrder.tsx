@@ -34,7 +34,7 @@ interface SalesOrderRecord {
 
 const emptyLine: LineItem = {
   fgItem: '', fgDescription: '', uom: '',
-  poQty: '0.000', unitPrice: '0.000',
+  poQty: '', unitPrice: '',
   dueDate: new Date().toISOString().split('T')[0],
   rmCode: '', referenceNo: '',
 };
@@ -203,6 +203,12 @@ export default function SalesOrder() {
 
   const handleLoad = () => {
     setApprovalRows(buildRows(salesOrders, appSOKey, appDueDate));
+  };
+
+  const handleClearAllFilters = () => {
+    setAppSOKey('');
+    setAppDueDate('');
+    setApprovalRows(buildRows(salesOrders));
   };
 
   const toggleRow = (idx: number) =>
@@ -410,12 +416,12 @@ export default function SalesOrder() {
                     </div>
                     <div className="space-y-1">
                       <Label>PO Qty <span className="text-red-500">*</span></Label>
-                      <Input type="number" value={line.poQty}
+                      <Input type="number" value={line.poQty} placeholder="0.000"
                         onChange={(e) => setLine({ ...line, poQty: e.target.value })} />
                     </div>
                     <div className="space-y-1">
                       <Label>Unit Price</Label>
-                      <Input type="number" value={line.unitPrice}
+                      <Input type="number" value={line.unitPrice} placeholder="0.000"
                         onChange={(e) => setLine({ ...line, unitPrice: e.target.value })} />
                     </div>
                     <div className="space-y-1">
@@ -527,9 +533,12 @@ export default function SalesOrder() {
                   <Input type="date" value={appDueDate} onChange={(e) => setAppDueDate(e.target.value)} />
                 </div>
               </div>
-              <div className="mt-4">
-                <Button onClick={handleLoad} className="bg-primary px-8" disabled={!appSOKey}>
-                  Load
+              <div className="mt-4 flex gap-3">
+                <Button onClick={handleLoad} className="bg-primary px-8">
+                  Filter
+                </Button>
+                <Button onClick={handleClearAllFilters} variant="outline" className="px-6 border-slate-400 text-slate-700 hover:bg-slate-50">
+                  Clear All Filters
                 </Button>
               </div>
             </CardContent>
